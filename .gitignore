@@ -1,0 +1,20 @@
+# build artifacts
+build*/
+cmake-build*/
+bin/
+
+# IDE settings
+.vscode/
+.idea/
+.focus-config
+*.raddbg_project
+.zed/
+.cache/
+
+# Mac extras
+.DS_Store
+*.trace
+_build/
+
+CMakeFiles/**
+args.tmp
