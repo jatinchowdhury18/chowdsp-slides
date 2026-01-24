@@ -1,21 +1,26 @@
 #pragma once
 
 #include <cassert>
+#include <iostream>
 #include <visage/app.h>
 
 #include <fcntl.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-struct MMap_Image
+#if VISAGE_MAC || VISAGE_LINUX || VISAGE_EMSCRIPTEN
+#include <sys/mman.h>
+#define USE_MMAP 1
+#endif
+
+struct Image
 {
     const unsigned char* data {};
     size_t size {};
 
-    MMap_Image() = default;
+    Image() = default;
 
-    MMap_Image (std::string path)
+    Image (std::string path)
     {
         int fd = open (path.c_str(), O_RDONLY);
         if (fd == -1)
@@ -27,23 +32,36 @@ struct MMap_Image
 
         size = sb.st_size;
 
+#if USE_MMAP
         data = static_cast<const unsigned char*> (mmap (NULL, size, PROT_READ, MAP_PRIVATE, fd, 0u));
         if (data == MAP_FAILED)
             assert (false);
+#else
+        auto* fdata = malloc (size);
+        const auto bytes_read = read (fd, fdata, size);
+        assert (bytes_read == size);
+        data = static_cast<const unsigned char*> (fdata);
+#endif
 
         close (fd);
     }
 
-    ~MMap_Image()
+    ~Image()
     {
         if (data != nullptr)
+        {
+#if USE_MMAP
             munmap (const_cast<unsigned char*> (data), size);
+#else
+            free (const_cast<unsigned char*> (data));
+#endif
+        }
     }
 };
 
 struct Slide_Params
 {
-    MMap_Image* background_image {};
+    Image* background_image {};
     visage::Color background_color {};
 };
 

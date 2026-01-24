@@ -19,19 +19,20 @@ elseif (APPLE)
     MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_BINARY_DIR}/chowdsp-slides.plist
   )
 elseif (EMSCRIPTEN)
-  # target_link_options(chowdsp_slides
-  #   PRIVATE
-  #   --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/emscripten_template.html
-  #   -sGL_ENABLE_GET_PROC_ADDRESS
-  #   -sALLOW_MEMORY_GROWTH
-  #   --bind
-  #   "-sEXPORTED_FUNCTIONS=['_main', '_pasteCallback']"
-  #   "-sEXPORTED_RUNTIME_METHODS=['ccall', 'cwrap', 'UTF8ToString']"
-  # )
+  target_link_options(chowdsp_slides
+    PRIVATE
+    --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/test/template.html
+    --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/test/background.jpg@background.jpg
+    -sGL_ENABLE_GET_PROC_ADDRESS
+    -sALLOW_MEMORY_GROWTH
+    --bind
+    "-sEXPORTED_FUNCTIONS=['_main', '_pasteCallback']"
+    "-sEXPORTED_RUNTIME_METHODS=['ccall', 'cwrap', 'UTF8ToString']"
+  )
 
-  # set_target_properties(chowdsp_slides PROPERTIES
-  #   SUFFIX ".html"
-  #   OUTPUT_NAME "index"
-  #   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/builds/${EXAMPLE}"
-  # )
+  set_target_properties(chowdsp_slides PROPERTIES
+    SUFFIX ".html"
+    OUTPUT_NAME "index"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test"
+  )
 endif ()

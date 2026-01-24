@@ -14,10 +14,13 @@ int main()
 
     Slideshow slides { {
         new Slide { {
-            .background_image = new MMap_Image { "test/background.jpg" },
+            .background_image = new Image { "background.jpg" },
         } },
         new Slide { {
             .background_color = 0xff434300,
+        } },
+        new Slide { {
+            .background_color = 0xff00ffff,
         } },
     } };
     window.addChild (&slides);
