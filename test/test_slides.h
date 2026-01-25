@@ -2,7 +2,7 @@
 
 #include "../slides.h"
 
-int main()
+int run_slides()
 {
     visage::ApplicationWindow window;
 

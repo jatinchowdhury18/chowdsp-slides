@@ -6,13 +6,19 @@
 
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #if VISAGE_MAC || VISAGE_LINUX || VISAGE_EMSCRIPTEN
 #include <sys/mman.h>
+#include <unistd.h>
 #define USE_MMAP 1
+#else // VISAGE_WINDOWS
+#include <Windows.h>
+#include <stdio.h>
+#define USE_MMAP 1 // @TODO no MMAP is not implemented!
 #endif
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 struct Image
 {
     const unsigned char* data {};
@@ -22,6 +28,7 @@ struct Image
 
     Image (std::string path)
     {
+#if VISAGE_MAC || VISAGE_LINUX || VISAGE_EMSCRIPTEN
         int fd = open (path.c_str(), O_RDONLY);
         if (fd == -1)
             assert (false);
@@ -44,20 +51,38 @@ struct Image
 #endif
 
         close (fd);
+#else
+        const auto file = CreateFile (path.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+
+        LARGE_INTEGER lp_file_size;
+        GetFileSizeEx (file, &lp_file_size);
+        size = static_cast<size_t> (lp_file_size.QuadPart);
+
+        const auto map = CreateFileMapping (file, NULL, PAGE_READONLY, 0, 0, NULL);
+        data = static_cast<const unsigned char*> (MapViewOfFile (map, FILE_MAP_READ, 0, 0, 0));
+
+        CloseHandle (map);
+        CloseHandle (file);
+#endif
     }
 
     ~Image()
     {
         if (data != nullptr)
         {
+#if VISAGE_MAC || VISAGE_LINUX || VISAGE_EMSCRIPTEN
 #if USE_MMAP
             munmap (const_cast<unsigned char*> (data), size);
 #else
             free (const_cast<unsigned char*> (data));
 #endif
+#else
+            UnmapViewOfFile (data);
+#endif
         }
     }
 };
+#pragma clang diagnostic pop
 
 struct Slide_Params
 {
@@ -121,7 +146,7 @@ struct Slideshow : visage::Frame
         }
 
         // requestKeyboardFocus();
-        setAcceptsKeystrokes(true);
+        setAcceptsKeystrokes (true);
     }
 
     ~Slideshow() override
