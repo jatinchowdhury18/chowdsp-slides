@@ -1,11 +1,11 @@
-#include "test/test_slides.h"
+#include <slides.h>
 
-#if VISAGE_MAC || VISAGE_LINUX || VISAGE_EMSCRIPTEN
+#if CHOWDSP_SLIDES_POSIX
 int main(int, char**)
 {
   return run_slides();
 }
-#else
+#elif CHOWDSP_SLIDES_WINDOWS
 #include <windows.h>
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 {
