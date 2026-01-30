@@ -74,6 +74,9 @@ struct Slideshow : visage::Frame
         setAcceptsKeystrokes (true);
     }
 
+    Slideshow (const Slideshow&) = delete;
+    Slideshow& operator= (const Slideshow&) = delete;
+
     ~Slideshow() override
     {
         for (auto* slide : slides)
