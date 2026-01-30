@@ -63,6 +63,8 @@ struct Slideshow : visage::Frame
         for (auto* slide : slides)
         {
             addChild (slide, false);
+            using namespace visage::dimension;
+            slide->layout().setDimensions (100_vw, 100_vh);
         }
         if (! slides.empty())
         {
@@ -72,6 +74,12 @@ struct Slideshow : visage::Frame
 
         // requestKeyboardFocus();
         setAcceptsKeystrokes (true);
+
+        onDraw() = [] (visage::Canvas& canvas)
+        {
+            canvas.setColor (0xff00ff00);
+            canvas.fill (0, 0, canvas.width(), canvas.height());
+        };
     }
 
     Slideshow (const Slideshow&) = delete;
@@ -81,13 +89,6 @@ struct Slideshow : visage::Frame
     {
         for (auto* slide : slides)
             delete slide;
-    }
-
-    void resized() override
-    {
-        using namespace visage::dimension;
-        for (auto* slide : slides)
-            slide->layout().setDimensions (100_vw, 100_vh);
     }
 
     void previous_slide()

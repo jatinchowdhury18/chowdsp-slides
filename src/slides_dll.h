@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cassert>
+
 #include "slides_platform.h"
 
 #if CHOWDSP_SLIDES_MACOS || CHOWDSP_SLIDES_LINUX
@@ -12,6 +14,7 @@ namespace chowdsp::slides
 void* open_dll (std::string_view path)
 {
 #if CHOWDSP_SLIDES_MACOS || CHOWDSP_SLIDES_LINUX
+    // return dlopen (path.data(), RTLD_LOCAL | RTLD_NOW);
     return dlopen (path.data(), RTLD_LOCAL | RTLD_NOW);
 #elif CHOWDSP_SLIDES_WINDOWS
 #else
@@ -24,10 +27,11 @@ void close_dll (void* dll)
     if (dll == nullptr)
         return;
 #if CHOWDSP_SLIDES_MACOS || CHOWDSP_SLIDES_LINUX
-    dlclose (dll);
+    auto result = dlclose (dll);
+    assert (result == 0);
 #elif CHOWDSP_SLIDES_WINDOWS
 #else
-    return nullptr;
+    return;
 #endif
 }
 
