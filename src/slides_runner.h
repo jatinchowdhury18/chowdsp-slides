@@ -36,12 +36,12 @@ static Slideshow* make_slides_reload (Run_Opts& run_opts)
 
     const auto original_dll_path = fs::path { DLL_PATH };
     const auto new_dll_filename = original_dll_path.stem().string() + "_" + std::to_string (run_opts.last_update_time);
-    const auto new_dll_path = original_dll_path.parent_path() / (new_dll_filename + original_dll_path.extension().string());
-    const auto copy_cmd = std::string { "mv " } + original_dll_path.string() + " " + new_dll_path.string();
+    const auto new_dll_path = original_dll_path.parent_path().string() + "/" + new_dll_filename + original_dll_path.extension().string();
+    const auto copy_cmd = std::string { "mv " } + original_dll_path.string() + " " + new_dll_path;
     error_code = std::system (copy_cmd.c_str());
     assert (error_code == 0);
 
-    auto* hot_reload_dll = open_dll (new_dll_path.c_str());
+    auto* hot_reload_dll = open_dll (new_dll_path);
     auto slide_maker = reinterpret_cast<Slides_Maker> (get_dll_function (hot_reload_dll, "make_slides"));
     if (slide_maker == nullptr)
     {
@@ -53,7 +53,7 @@ static Slideshow* make_slides_reload (Run_Opts& run_opts)
     auto* slides = slide_maker (run_opts);
 
     close_dll (hot_reload_dll);
-    const auto rm_cmd = std::string { "rm " } + new_dll_path.string();
+    const auto rm_cmd = std::string { "rm " } + new_dll_path;
     error_code = std::system (rm_cmd.c_str());
     assert (error_code == 0);
 
@@ -114,7 +114,6 @@ void slides_runner (Run_Opts run_opts)
         window.computeLayout (slides);
 
         std::cout << "Finished loading slides!\n";
-        std::cout << slides->slides[1]->params.background_color.toARGBHexString() << std::endl;
     };
 
     // slides stuff

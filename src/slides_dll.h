@@ -14,9 +14,9 @@ namespace chowdsp::slides
 void* open_dll (std::string_view path)
 {
 #if CHOWDSP_SLIDES_MACOS || CHOWDSP_SLIDES_LINUX
-    // return dlopen (path.data(), RTLD_LOCAL | RTLD_NOW);
     return dlopen (path.data(), RTLD_LOCAL | RTLD_NOW);
 #elif CHOWDSP_SLIDES_WINDOWS
+    return LoadLibrary (path.data());
 #else
     return nullptr;
 #endif
@@ -30,6 +30,7 @@ void close_dll (void* dll)
     auto result = dlclose (dll);
     assert (result == 0);
 #elif CHOWDSP_SLIDES_WINDOWS
+    FreeLibrary ((HMODULE) dll);
 #else
     return;
 #endif
@@ -42,6 +43,7 @@ void* get_dll_function (void* dll, std::string_view function_name)
 #if CHOWDSP_SLIDES_MACOS || CHOWDSP_SLIDES_LINUX
     return dlsym (dll, function_name.data());
 #elif CHOWDSP_SLIDES_WINDOWS
+    return (void*) GetProcAddress ((HMODULE) dll, function_name.data());
 #else
     return nullptr;
 #endif

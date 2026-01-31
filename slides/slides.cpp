@@ -10,7 +10,6 @@ using namespace chowdsp::slides;
 
 DLL_EXPORT Slideshow* make_slides (Run_Opts&)
 {
-    std::cout << "dddd44...\n";
     return new Slideshow {
         "ChowDSP Slides",
         {
