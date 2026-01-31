@@ -20,14 +20,14 @@ namespace chowdsp::slides
 {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-struct Image
+struct File
 {
     const unsigned char* data {};
     size_t size {};
 
-    Image() = default;
+    File() = default;
 
-    Image (std::string path)
+    File (std::string path)
     {
 #if CHOWDSP_SLIDES_POSIX
         int fd = open (path.c_str(), O_RDONLY);
@@ -67,7 +67,7 @@ struct Image
 #endif
     }
 
-    ~Image()
+    ~File()
     {
         if (data != nullptr)
         {

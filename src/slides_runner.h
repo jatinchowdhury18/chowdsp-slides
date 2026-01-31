@@ -81,8 +81,6 @@ static bool needs_reload (Run_Opts&) { return false; }
 
 void slides_runner (Run_Opts run_opts)
 {
-    using namespace visage::dimension;
-
     visage::ApplicationWindow window;
     window.onDraw() = [] (visage::Canvas& canvas)
     {
@@ -108,7 +106,6 @@ void slides_runner (Run_Opts run_opts)
         slides->active_slide = run_opts.hot_reload_slide_state;
         window.addChild (slides);
 
-        using namespace visage::dimension;
         slides->layout().setDimensions (100_vw, 100_vh);
         window.setTitle (std::string { slides->name });
         window.computeLayout (slides);

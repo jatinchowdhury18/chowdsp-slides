@@ -9,11 +9,18 @@ function(package_slides_app)
             MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_BINARY_DIR}/chowdsp-slides.plist
         )
     elseif (EMSCRIPTEN)
-        # @TODO: preload asset files...
+        file(GLOB asset_files ${CMAKE_CURRENT_SOURCE_DIR}/slides/assets/*)
+        set(preload_commands "")
+        foreach(asset_file ${asset_files})
+            string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/slides/" "" asset_file_stem ${asset_file})
+            set(preload_cmd "SHELL:--preload-file ${asset_file}@${asset_file_stem}")
+            list(APPEND preload_commands "${preload_cmd}")
+        endforeach()
+
         target_link_options(chowdsp_slides
             PRIVATE
             --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/slides/slides.html
-            --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/slides/background.jpg@background.jpg
+            ${preload_commands}
             -sGL_ENABLE_GET_PROC_ADDRESS
             -sALLOW_MEMORY_GROWTH
             --bind
