@@ -38,16 +38,28 @@ DLL_EXPORT Slideshow* make_slides (Run_Opts&)
                 .title = {
                     .text = "Slide #1",
                     .size = 55,
+                    .justification = visage::Font::kLeft,
                 },
-                .text = {
-                    {
-                        .text = R"(
-Heading 1
-- Bullet point 1
-    - Sub-point #1)",
-                        .size = 35,
-                        .dims = { 2_vw, 10_vh, 96_vw, 90_vh },
-                    },
+                .content = {
+                    new Bullet_List { { .frame_params = {
+                                            .dims = { 2_vw, 10_vh, 96_vw, 88_vh },
+                                        } },
+                                      {
+                                          Bullet_Params {
+                                              .text = "Bullet point #1",
+                                          },
+                                          {
+                                              .text = "Bullet point #2",
+                                          },
+                                          {
+                                              .text = "sub-bullet point #1",
+                                              .indent = 1,
+                                          },
+                                          {
+                                              .text = "sub-bullet point #2",
+                                              .indent = 1,
+                                          },
+                                      } },
                 },
             } },
             new Slide { {

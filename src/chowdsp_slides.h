@@ -31,13 +31,26 @@ struct Slide_Text
     Dims dims {};
 };
 
+static auto compute_dim (visage::Dimension dim, const visage::Frame& parent)
+{
+    return dim.compute (parent.dpiScale(), parent.width(), parent.height());
+}
+
 static auto get_coords (Dims dims, const visage::Frame& parent)
 {
     return std::make_tuple (
-        dims[0].compute (parent.dpiScale(), parent.width(), parent.height()),
-        dims[1].compute (parent.dpiScale(), parent.width(), parent.height()),
-        dims[2].compute (parent.dpiScale(), parent.width(), parent.height()),
-        dims[3].compute (parent.dpiScale(), parent.width(), parent.height()));
+        compute_dim (dims[0], parent),
+        compute_dim (dims[1], parent),
+        compute_dim (dims[2], parent),
+        compute_dim (dims[3], parent));
+}
+
+static auto set_bounds (Dims dims, visage::Frame& child, const visage::Frame& parent)
+{
+    child.setBounds (compute_dim (dims[0], parent),
+                     compute_dim (dims[1], parent),
+                     compute_dim (dims[2], parent),
+                     compute_dim (dims[3], parent));
 }
 
 static void draw_text (const Slide_Text& text,
@@ -59,15 +72,191 @@ static void draw_text (const Slide_Text& text,
                                         text.justification);
     stored_text->setMultiLine (true);
     canvas.text (stored_text, x, y, w, h);
-
-    // canvas.text (text.text.data(),
-    //              visage::Font { text.size, font->data, (int) font->size },
-    //              text.justification,
-    //              x,
-    //              y,
-    //              w,
-    //              h);
 }
+
+struct Content_Frame_Params
+{
+    Dims dims {};
+    Default_Params** default_params {};
+    bool animate = true;
+};
+
+struct Content_Frame : visage::Frame
+{
+    Content_Frame_Params frame_params {};
+    size_t animation_steps {};
+    size_t active_animation_step {};
+    visage::Animation<float> animation {
+        visage::Animation<float>::kRegularTime,
+        visage::Animation<float>::kLinear,
+        visage::Animation<float>::kLinear,
+    };
+
+    Content_Frame() = default;
+    Content_Frame (Content_Frame_Params params)
+        : frame_params { params }
+    {
+        if (! frame_params.animate)
+            animation.setAnimationTime (0);
+        animation.setTargetValue (1.0f);
+        animation.target (! frame_params.animate);
+    }
+
+    void show()
+    {
+        animation.target (true);
+        redraw();
+    }
+
+    void hide()
+    {
+        animation.target (false);
+        redraw();
+    }
+
+    void draw (visage::Canvas& canvas) override
+    {
+        animation.update();
+        if (animation.isAnimating())
+            redraw();
+    }
+
+    virtual bool previous_step()
+    {
+        return false;
+    }
+
+    virtual bool next_step()
+    {
+        return false;
+    }
+};
+
+struct Bullet_List_Params
+{
+    Content_Frame_Params frame_params {};
+    visage::Color text_color { 0xffffffff };
+    float font { 30.0f };
+    visage::Dimension padding { 2_vh };
+    visage::Dimension indent { 3_vw };
+    bool animate = true;
+};
+
+struct Bullet_Params
+{
+    std::string text {};
+    int indent = 0;
+    visage::Color text_color {};
+    float font {};
+};
+
+struct Bullet_List : Content_Frame
+{
+    Bullet_List_Params bullet_list_params {};
+
+    struct Bullet : Content_Frame
+    {
+        Bullet_Params bullet_params {};
+        Bullet (Bullet_Params ps, bool animate)
+            : Content_Frame { {
+                  .animate = animate,
+              } },
+              bullet_params { ps }
+        {
+        }
+
+        void draw (visage::Canvas& canvas) override
+        {
+            Content_Frame::draw (canvas);
+            if (animation.value() == 0.0f)
+                return;
+
+            // @TODO: different bullet point options...
+            // probably treat bullet point as an image? then the text would be better aligned too...?
+            const auto bullet_text = std::string { "- " } + bullet_params.text;
+            canvas.setColor (bullet_params.text_color.withAlpha (animation.value()));
+            auto* stored_text = canvas.getText (bullet_text,
+                                                visage::Font { bullet_params.font,
+                                                               (*frame_params.default_params)->font->data,
+                                                               (int) (*frame_params.default_params)->font->size },
+                                                visage::Font::kTopLeft);
+            stored_text->setMultiLine (true);
+            canvas.text (stored_text, 0.0f, 0.0f, width(), height());
+        }
+    };
+    std::vector<Bullet*> bullets {};
+
+    Bullet_List (Bullet_List_Params this_list_params,
+                 std::initializer_list<Bullet_Params> bullet_params = {})
+        : Content_Frame { this_list_params.frame_params },
+          bullet_list_params { this_list_params }
+    {
+        if (bullet_list_params.animate)
+            animation_steps = bullet_params.size();
+
+        for (auto one_bullet_params : bullet_params)
+        {
+            if (one_bullet_params.text_color.alpha() == 0.0f)
+                one_bullet_params.text_color = bullet_list_params.text_color;
+            if (one_bullet_params.font == 0.0f)
+                one_bullet_params.font = bullet_list_params.font;
+            auto& new_bullet = bullets.emplace_back (new Bullet { one_bullet_params, bullet_list_params.animate });
+            addChild (new_bullet);
+        }
+    }
+
+    ~Bullet_List() override
+    {
+        for (auto* bullet : bullets)
+            delete bullet;
+    }
+
+    void draw (visage::Canvas& canvas) override
+    {
+        Content_Frame::draw (canvas);
+
+        canvas.setColor (visage::Color { 0xff212529 }.withAlpha (animation.value()));
+        const auto pad = compute_dim (bullet_list_params.padding, *this);
+        canvas.roundedRectangle (0, 0, width(), height(), pad * 2);
+    }
+
+    void resized() override
+    {
+        const auto indent_x = compute_dim (bullet_list_params.indent, *this);
+        const auto pad_x = compute_dim (bullet_list_params.padding, *this);
+        const auto pad_y = compute_dim (bullet_list_params.padding, *this);
+        auto y = pad_y;
+        for (auto* bullet : bullets)
+        {
+            bullet->frame_params.default_params = frame_params.default_params;
+
+            const auto x = indent_x * bullet->bullet_params.indent + pad_x;
+            const auto height = bullet->bullet_params.font + pad_y;
+            bullet->setBounds (x, y, width(), height);
+            y += height;
+        }
+    }
+
+    bool previous_step() override
+    {
+        if (active_animation_step == 0)
+            return false;
+
+        active_animation_step--;
+        bullets[active_animation_step]->hide();
+        return true;
+    }
+
+    bool next_step() override
+    {
+        if (animation_steps == 0 || active_animation_step == animation_steps)
+            return false;
+
+        bullets[active_animation_step]->show();
+        active_animation_step++;
+        return true;
+    }
+};
 
 struct Slide_Params
 {
@@ -79,6 +268,9 @@ struct Slide_Params
     Slide_Style style { Content };
 
     Slide_Text title {};
+
+    std::vector<Content_Frame*> content {};
+
     std::vector<Slide_Text> text {};
 };
 
@@ -86,19 +278,71 @@ struct Slide : visage::Frame
 {
     Slide_Params params {};
     Default_Params* default_params {};
+    size_t animation_frames {};
+    size_t active_animation_frame {};
+    std::vector<Content_Frame*> frames_to_animate {};
 
     Slide (Slide_Params slide_params) : params { slide_params }
     {
+        for (auto* content_frame : params.content)
+        {
+            addChild (content_frame);
+            content_frame->frame_params.default_params = &default_params;
+
+            if (content_frame->frame_params.animate || content_frame->animation_steps != 0)
+            {
+                animation_frames++;
+                frames_to_animate.push_back (content_frame);
+            }
+        }
     }
 
     ~Slide()
     {
         if (params.background_image != nullptr)
             delete params.background_image;
+
+        for (auto* content_frame : params.content)
+            delete content_frame;
+    }
+
+    bool previous_step()
+    {
+        if (active_animation_frame == 0)
+            return false;
+
+        if (active_animation_frame > 0)
+            frames_to_animate[active_animation_frame - 1]->previous_step();
+
+        if (frames_to_animate[active_animation_frame - 1]->active_animation_step == 0)
+        {
+            active_animation_frame--;
+            frames_to_animate[active_animation_frame]->hide();
+        }
+        return true;
+    }
+
+    bool next_step()
+    {
+        if (animation_frames == 0)
+            return false;
+
+        if (active_animation_frame > 0 && frames_to_animate[active_animation_frame - 1]->next_step())
+            return true;
+
+        if (active_animation_frame == animation_frames)
+            return false;
+
+        frames_to_animate[active_animation_frame]->show();
+        active_animation_frame++;
+        frames_to_animate[active_animation_frame - 1]->next_step();
+        return true;
     }
 
     void resized() override
     {
+        for (auto* content_frame : params.content)
+            set_bounds (content_frame->frame_params.dims, *content_frame, *this);
         redrawAll();
     }
 
@@ -196,8 +440,11 @@ struct Slideshow : visage::Frame
             slides[slide_idx]->setVisible (slide_idx == active_slide);
     }
 
-    void previous_slide()
+    void previous_step()
     {
+        if (slides[active_slide]->previous_step())
+            return;
+
         if (active_slide == 0)
             return;
         slides[active_slide]->setVisible (false);
@@ -205,8 +452,11 @@ struct Slideshow : visage::Frame
         slides[active_slide]->setVisible (true);
     }
 
-    void next_slide()
+    void next_step()
     {
+        if (slides[active_slide]->next_step())
+            return;
+
         if (active_slide == slides.size() - 1)
             return;
         slides[active_slide]->setVisible (false);
@@ -218,12 +468,12 @@ struct Slideshow : visage::Frame
     {
         if (key.keyCode() == visage::KeyCode::Right)
         {
-            next_slide();
+            next_step();
             return true;
         }
         if (key.keyCode() == visage::KeyCode::Left)
         {
-            previous_slide();
+            previous_step();
             return true;
         }
 
