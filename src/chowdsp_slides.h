@@ -104,21 +104,29 @@ struct Content_Frame : visage::Frame
 
     void show()
     {
-        animation.target (true);
-        redraw();
+        if (frame_params.animate)
+            animation.target (true);
+        redrawAll();
     }
 
     void hide()
     {
-        animation.target (false);
-        redraw();
+        if (frame_params.animate)
+            animation.target (false);
+        redrawAll();
     }
 
     void draw (visage::Canvas& canvas) override
     {
+        const auto is_animating = animation.isAnimating();
         animation.update();
-        if (animation.isAnimating())
-            redraw();
+        if (is_animating)
+            redrawAll();
+    }
+
+    virtual float fade_alpha() const
+    {
+        return animation.value();
     }
 
     virtual bool previous_step()
@@ -156,6 +164,7 @@ struct Bullet_List : Content_Frame
 
     struct Bullet : Content_Frame
     {
+        Bullet_List* parent {};
         Bullet_Params bullet_params {};
         Bullet (Bullet_Params ps, bool animate)
             : Content_Frame { {
@@ -165,16 +174,24 @@ struct Bullet_List : Content_Frame
         {
         }
 
+        virtual float fade_alpha() const override
+        {
+            const auto parent_alpha = parent->fade_alpha();
+            const auto self_alpha = Content_Frame::fade_alpha();
+            return parent_alpha * self_alpha;
+        }
+
         void draw (visage::Canvas& canvas) override
         {
             Content_Frame::draw (canvas);
-            if (animation.value() == 0.0f)
+            const auto alpha = fade_alpha();
+            if (alpha == 0.0f)
                 return;
 
             // @TODO: different bullet point options...
             // probably treat bullet point as an image? then the text would be better aligned too...?
             const auto bullet_text = std::string { "- " } + bullet_params.text;
-            canvas.setColor (bullet_params.text_color.withAlpha (animation.value()));
+            canvas.setColor (bullet_params.text_color.withAlpha (alpha));
             auto* stored_text = canvas.getText (bullet_text,
                                                 visage::Font { bullet_params.font,
                                                                (*frame_params.default_params)->font->data,
@@ -201,6 +218,7 @@ struct Bullet_List : Content_Frame
             if (one_bullet_params.font == 0.0f)
                 one_bullet_params.font = bullet_list_params.font;
             auto& new_bullet = bullets.emplace_back (new Bullet { one_bullet_params, bullet_list_params.animate });
+            new_bullet->parent = this;
             addChild (new_bullet);
         }
     }
@@ -215,7 +233,7 @@ struct Bullet_List : Content_Frame
     {
         Content_Frame::draw (canvas);
 
-        canvas.setColor (visage::Color { 0xff212529 }.withAlpha (animation.value()));
+        canvas.setColor (visage::Color { 0xff212529 }.withAlpha (fade_alpha()));
         const auto pad = compute_dim (bullet_list_params.padding, *this);
         canvas.roundedRectangle (0, 0, width(), height(), pad * 2);
     }

@@ -41,9 +41,13 @@ DLL_EXPORT Slideshow* make_slides (Run_Opts&)
                     .justification = visage::Font::kLeft,
                 },
                 .content = {
-                    new Bullet_List { { .frame_params = {
-                                            .dims = { 2_vw, 10_vh, 96_vw, 88_vh },
-                                        } },
+                    new Bullet_List { {
+                                          .frame_params = {
+                                              .dims = { 2_vw, 10_vh, 96_vw, 88_vh },
+                                              .animate = false,
+                                          },
+                                          .animate = false,
+                                      },
                                       {
                                           Bullet_Params {
                                               .text = "Bullet point #1",
