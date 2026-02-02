@@ -41,4 +41,13 @@ static auto set_bounds (Dims dims, visage::Frame& child, const visage::Frame& pa
                      compute_dim (dims[2], parent),
                      compute_dim (dims[3], parent));
 }
+
+static auto font (const Default_Params& params, float size)
+{
+    return visage::Font {
+        size,
+        params.font->data,
+        (int) params.font->size,
+    };
+}
 } // namespace chowdsp::slides

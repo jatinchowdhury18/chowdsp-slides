@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <visage/widgets.h>
 
 #include "slides_content.h"
@@ -11,6 +12,8 @@ struct Audio_Player_Params
     Content_Frame_Params frame_params {};
     std::string_view file_path {};
     visage::Color background_color { 0xff181B1F };
+    visage::Color label_color { 0xffffffff };
+    std::string label {};
 };
 
 struct Audio_Player : Content_Frame
@@ -75,13 +78,11 @@ struct Audio_Player : Content_Frame
         };
     }
 
-    void set_default_params (Default_Params* default_params) override
+    void load_thumbnail()
     {
-        Content_Frame::set_default_params (default_params);
-
         auto decoder_config = ma_decoder_config_init (ma_format_f32, 0, 0);
         ma_decoder decoder;
-        auto result = ma_decoder_init_file ("assets/test.wav", &decoder_config, &decoder);
+        auto result = ma_decoder_init_file (player_params.file_path.data(), &decoder_config, &decoder);
         assert (result == MA_SUCCESS);
 
         ma_uint64 frame_count;
@@ -110,7 +111,7 @@ struct Audio_Player : Content_Frame
 
             const auto frame_avg = [frames_per_thumb] (float sum)
             {
-                return std::min (10.0f * sum / (float) frames_per_thumb, 1.0f);
+                return std::min (8.0f * sum / (float) frames_per_thumb, 1.0f);
             };
 
             thumbs[thumb_idx][0] = frame_avg (thumbs[thumb_idx][0]);
@@ -122,13 +123,30 @@ struct Audio_Player : Content_Frame
 
         free (data_interleaved);
         ma_decoder_uninit (&decoder);
+    }
 
-        result = ma_sound_init_from_file (frame_params.default_params->audio_engine,
-                                          "assets/test.wav",
-                                          MA_SOUND_FLAG_NO_PITCH | MA_SOUND_FLAG_NO_SPATIALIZATION,
-                                          NULL,
-                                          NULL,
-                                          &sound);
+    void set_default_params (Default_Params* default_params) override
+    {
+        Content_Frame::set_default_params (default_params);
+
+        if (player_params.label_color.alpha() == 0.0f)
+            player_params.label_color = default_params->text_color;
+
+        if (player_params.label.empty())
+        {
+            namespace fs = std::filesystem;
+            const auto file_path = fs::path { player_params.file_path.data() };
+            player_params.label = file_path.filename().string();
+        }
+
+        load_thumbnail();
+
+        auto result = ma_sound_init_from_file (frame_params.default_params->audio_engine,
+                                               player_params.file_path.data(),
+                                               MA_SOUND_FLAG_NO_PITCH | MA_SOUND_FLAG_NO_SPATIALIZATION,
+                                               NULL,
+                                               NULL,
+                                               &sound);
         assert (result == MA_SUCCESS);
 
         play_pause_button.onToggle() = [this] (visage::Button*, bool toggle_state)
@@ -167,10 +185,23 @@ struct Audio_Player : Content_Frame
 
         play_pause_button.setAlphaTransparency (alpha);
 
+        // background
         canvas.setColor (visage::Color { player_params.background_color }
                              .withAlpha (alpha));
         canvas.roundedRectangle (0, 0, width(), height(), height() * 0.05);
 
+        // label
+        canvas.setColor (visage::Color { player_params.label_color }
+                             .withAlpha (alpha));
+        canvas.text (player_params.label,
+                     font (*frame_params.default_params, compute_dim (12_vh, *this)),
+                     visage::Font::kCenter,
+                     compute_dim (0_vw, *this),
+                     compute_dim (80_vh, *this),
+                     compute_dim (100_vw, *this),
+                     compute_dim (20_vh, *this));
+
+        // thumbnail
         float cursor, length;
         ma_sound_get_cursor_in_seconds (&sound, &cursor);
         ma_sound_get_length_in_seconds (&sound, &length);

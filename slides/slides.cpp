@@ -50,6 +50,12 @@ DLL_EXPORT Slideshow* make_slides (Run_Opts&)
                                       },
                                       {
                                           Bullet_Params {
+                                              .text = "Heading",
+                                              .font = 40.0f,
+                                              .justification = visage::Font::kCenter,
+                                              .has_bullet = false,
+                                          },
+                                          {
                                               .text = "Bullet point #1",
                                           },
                                           {
@@ -68,6 +74,7 @@ DLL_EXPORT Slideshow* make_slides (Run_Opts&)
                         .frame_params = {
                             .dims = { 51_vw, 10_vh, 47_vw, 25_vh },
                         },
+                        .file_path = "assets/test.wav",
                     } },
                 },
             } },

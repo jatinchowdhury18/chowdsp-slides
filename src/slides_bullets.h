@@ -21,6 +21,8 @@ struct Bullet_Params
     int indent = 0;
     visage::Color text_color {};
     float font {};
+    visage::Font::Justification justification { visage::Font::kTopLeft };
+    bool has_bullet { true };
 };
 
 struct Bullet_List : Content_Frame
@@ -55,13 +57,11 @@ struct Bullet_List : Content_Frame
 
             // @TODO: different bullet point options...
             // probably treat bullet point as an image? then the text would be better aligned too...?
-            const auto bullet_text = std::string { "- " } + bullet_params.text;
+            const auto bullet_text = std::string { bullet_params.has_bullet ? "- " : "" } + bullet_params.text;
             canvas.setColor (bullet_params.text_color.withAlpha (alpha));
             auto* stored_text = canvas.getText (bullet_text,
-                                                visage::Font { bullet_params.font,
-                                                               frame_params.default_params->font->data,
-                                                               (int) frame_params.default_params->font->size },
-                                                visage::Font::kTopLeft);
+                                                font (*frame_params.default_params, bullet_params.font),
+                                                bullet_params.justification);
             stored_text->setMultiLine (true);
             canvas.text (stored_text, 0.0f, 0.0f, width(), height());
         }
