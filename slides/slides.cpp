@@ -46,7 +46,7 @@ DLL_EXPORT Slideshow* make_slides (Run_Opts&)
                                               .dims = { 2_vw, 10_vh, 96_vw, 88_vh },
                                               .animate = false,
                                           },
-                                          .animate = false,
+                                          // .animate = false,
                                       },
                                       {
                                           Bullet_Params {
