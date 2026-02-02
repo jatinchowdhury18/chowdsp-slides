@@ -43,7 +43,7 @@ DLL_EXPORT Slideshow* make_slides (Run_Opts&)
                 .content = {
                     new Bullet_List { {
                                           .frame_params = {
-                                              .dims = { 2_vw, 10_vh, 96_vw, 88_vh },
+                                              .dims = { 2_vw, 10_vh, 48_vw, 88_vh },
                                               .animate = false,
                                           },
                                           // .animate = false,

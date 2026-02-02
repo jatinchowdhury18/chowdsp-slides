@@ -7,6 +7,7 @@ namespace chowdsp::slides
 struct Bullet_List_Params
 {
     Content_Frame_Params frame_params {};
+    visage::Color background_color { 0xff212529 };
     visage::Color text_color { 0xffffffff };
     float font { 30.0f };
     visage::Dimension padding { 2_vh };
@@ -97,7 +98,8 @@ struct Bullet_List : Content_Frame
     {
         Content_Frame::draw (canvas);
 
-        canvas.setColor (visage::Color { 0xff212529 }.withAlpha (fade_alpha()));
+        canvas.setColor (visage::Color { bullet_list_params.background_color }
+                             .withAlpha (fade_alpha()));
         const auto pad = compute_dim (bullet_list_params.padding, *this);
         canvas.roundedRectangle (0, 0, width(), height(), pad * 2);
     }

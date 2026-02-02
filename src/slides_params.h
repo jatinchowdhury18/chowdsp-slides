@@ -10,6 +10,7 @@ namespace chowdsp::slides
 struct Default_Params
 {
     File* font {};
+    visage::Color background_color { 0xff33393f };
     visage::Color text_color { 0xffffffff };
 };
 

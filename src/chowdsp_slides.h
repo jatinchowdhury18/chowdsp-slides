@@ -2,8 +2,11 @@
 
 #include <iostream>
 
-#include "slides_text.h"
 #include "slides_bullets.h"
+#include "slides_text.h"
+
+#define MINIAUDIO_IMPLEMENTATION
+#include "third_party/miniaudio.h"
 
 namespace chowdsp::slides
 {
@@ -26,6 +29,16 @@ struct Slide_Params
     std::vector<Slide_Text> text {};
     std::vector<Content_Frame*> content {};
 };
+
+static void merge_params (Slide_Params& slide_params, const Default_Params& default_params)
+{
+    if (slide_params.background_color.alpha() == 0.0f)
+        slide_params.background_color = default_params.background_color;
+
+    merge_params (slide_params.title, default_params);
+    for (auto& text : slide_params.text)
+        merge_params (text, default_params);
+}
 
 struct Slide : visage::Frame
 {
@@ -62,9 +75,7 @@ struct Slide : visage::Frame
     void set_default_params (Default_Params* new_default_params)
     {
         default_params = new_default_params;
-        merge_params (params.title, *default_params);
-        for (auto& text : params.text)
-            merge_params (text, *default_params);
+        merge_params (params, *default_params);
     }
 
     bool previous_step()
@@ -114,10 +125,6 @@ struct Slide : visage::Frame
             canvas.setColor (0xffffffff);
             canvas.image (params.background_image->data, params.background_image->size, 0, 0, width(), height());
         }
-        else if (params.background_color.alpha() == 0.0f)
-        {
-            params.background_color = 0xff33393f;
-        }
 
         canvas.setColor (params.background_color);
         canvas.fill (0, 0, width(), height());
@@ -152,6 +159,8 @@ struct Slideshow : visage::Frame
     std::string_view name {};
     size_t active_slide = 0;
 
+    ma_engine audio_engine;
+
     explicit Slideshow (std::string_view slides_name,
                         Default_Params* default_params,
                         std::initializer_list<Slide*> init_slides)
@@ -175,11 +184,9 @@ struct Slideshow : visage::Frame
         // requestKeyboardFocus();
         setAcceptsKeystrokes (true);
 
-        onDraw() = [] (visage::Canvas& canvas)
-        {
-            canvas.setColor (0xff00ff00);
-            canvas.fill (0, 0, canvas.width(), canvas.height());
-        };
+        auto result = ma_engine_init (NULL, &audio_engine);
+        assert (result == MA_SUCCESS);
+        // result = ma_engine_play_sound (&audio_engine, "assets/test.wav", NULL);
     }
 
     Slideshow (const Slideshow&) = delete;
@@ -192,6 +199,8 @@ struct Slideshow : visage::Frame
 
         delete params->font;
         delete params;
+
+        ma_engine_uninit (&audio_engine);
     }
 
     void set_active_slide (size_t new_active_slide)
