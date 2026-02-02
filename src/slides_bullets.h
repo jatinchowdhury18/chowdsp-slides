@@ -59,8 +59,8 @@ struct Bullet_List : Content_Frame
             canvas.setColor (bullet_params.text_color.withAlpha (alpha));
             auto* stored_text = canvas.getText (bullet_text,
                                                 visage::Font { bullet_params.font,
-                                                               (*frame_params.default_params)->font->data,
-                                                               (int) (*frame_params.default_params)->font->size },
+                                                               frame_params.default_params->font->data,
+                                                               (int) frame_params.default_params->font->size },
                                                 visage::Font::kTopLeft);
             stored_text->setMultiLine (true);
             canvas.text (stored_text, 0.0f, 0.0f, width(), height());

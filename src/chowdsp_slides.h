@@ -2,11 +2,9 @@
 
 #include <iostream>
 
+#include "slides_audio_player.h"
 #include "slides_bullets.h"
 #include "slides_text.h"
-
-#define MINIAUDIO_IMPLEMENTATION
-#include "third_party/miniaudio.h"
 
 namespace chowdsp::slides
 {
@@ -53,7 +51,6 @@ struct Slide : visage::Frame
         for (auto* content_frame : params.content)
         {
             addChild (content_frame);
-            content_frame->frame_params.default_params = &default_params;
 
             if (content_frame->frame_params.animate || content_frame->animation_steps != 0)
             {
@@ -76,6 +73,8 @@ struct Slide : visage::Frame
     {
         default_params = new_default_params;
         merge_params (params, *default_params);
+        for (auto* content : params.content)
+            content->set_default_params (default_params);
     }
 
     bool previous_step()
@@ -159,6 +158,7 @@ struct Slideshow : visage::Frame
     std::string_view name {};
     size_t active_slide = 0;
 
+    // ma_resource_manager audio_resource_manager;
     ma_engine audio_engine;
 
     explicit Slideshow (std::string_view slides_name,
@@ -168,6 +168,8 @@ struct Slideshow : visage::Frame
           slides { init_slides.begin(), init_slides.end() },
           name { slides_name }
     {
+        init_audio_engine();
+
         for (auto* slide : slides)
         {
             slide->set_default_params (params);
@@ -183,10 +185,6 @@ struct Slideshow : visage::Frame
 
         // requestKeyboardFocus();
         setAcceptsKeystrokes (true);
-
-        auto result = ma_engine_init (NULL, &audio_engine);
-        assert (result == MA_SUCCESS);
-        // result = ma_engine_play_sound (&audio_engine, "assets/test.wav", NULL);
     }
 
     Slideshow (const Slideshow&) = delete;
@@ -201,6 +199,28 @@ struct Slideshow : visage::Frame
         delete params;
 
         ma_engine_uninit (&audio_engine);
+        // ma_resource_manager_uninit (&audio_resource_manager);
+    }
+
+    void init_audio_engine()
+    {
+        params->audio_engine = &audio_engine;
+
+        // auto audio_resource_manager_config = ma_resource_manager_config_init();
+        // audio_resource_manager_config.decodedFormat = ma_format_f32;
+
+        // // apparently Emscripten needs these two flags?
+        // audio_resource_manager_config.flags |= MA_RESOURCE_MANAGER_FLAG_NO_THREADING;
+        // audio_resource_manager_config.jobThreadCount = 0;
+
+        // auto result = ma_resource_manager_init (&audio_resource_manager_config, &audio_resource_manager);
+        // assert (result == MA_SUCCESS);
+
+        // auto audio_engine_config = ma_engine_config_init();
+        // audio_engine_config.pResourceManager = &audio_resource_manager;
+
+        auto result = ma_engine_init (nullptr, &audio_engine);
+        assert (result == MA_SUCCESS);
     }
 
     void set_active_slide (size_t new_active_slide)

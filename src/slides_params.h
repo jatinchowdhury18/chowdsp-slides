@@ -3,6 +3,9 @@
 #include <visage/app.h>
 using namespace visage::dimension;
 
+#define MINIAUDIO_IMPLEMENTATION
+#include "third_party/miniaudio.h"
+
 #include "slides_file.h"
 
 namespace chowdsp::slides
@@ -12,6 +15,8 @@ struct Default_Params
     File* font {};
     visage::Color background_color { 0xff33393f };
     visage::Color text_color { 0xffffffff };
+
+    ma_engine* audio_engine {};
 };
 
 using Dims = std::array<visage::Dimension, 4>;

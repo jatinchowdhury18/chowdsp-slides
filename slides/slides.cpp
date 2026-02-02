@@ -43,10 +43,10 @@ DLL_EXPORT Slideshow* make_slides (Run_Opts&)
                 .content = {
                     new Bullet_List { {
                                           .frame_params = {
-                                              .dims = { 2_vw, 10_vh, 48_vw, 88_vh },
-                                              .animate = false,
+                                              .dims = { 2_vw, 10_vh, 47_vw, 88_vh },
+                                              .animate = true,
                                           },
-                                          // .animate = false,
+                                          .animate = false,
                                       },
                                       {
                                           Bullet_Params {
@@ -64,6 +64,11 @@ DLL_EXPORT Slideshow* make_slides (Run_Opts&)
                                               .indent = 1,
                                           },
                                       } },
+                    new Audio_Player { {
+                        .frame_params = {
+                            .dims = { 51_vw, 10_vh, 47_vw, 25_vh },
+                        },
+                    } },
                 },
             } },
             new Slide { {

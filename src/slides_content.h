@@ -7,7 +7,7 @@ namespace chowdsp::slides
 struct Content_Frame_Params
 {
     Dims dims {};
-    Default_Params** default_params {};
+    Default_Params* default_params {};
     bool animate = true;
 };
 
@@ -30,6 +30,11 @@ struct Content_Frame : visage::Frame
             animation.setAnimationTime (0);
         animation.setTargetValue (1.0f);
         animation.target (! frame_params.animate);
+    }
+
+    virtual void set_default_params (Default_Params* default_params)
+    {
+        frame_params.default_params = default_params;
     }
 
     void show()
