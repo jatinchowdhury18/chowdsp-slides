@@ -19,7 +19,7 @@ function(package_slides_app)
         foreach(asset_file ${asset_files})
             string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/slides/" "" asset_file_stem ${asset_file})
             message(STATUS "Packaging asset file: ${asset_file_stem}")
-            set(preload_cmd "SHELL:--preload-file ${asset_file}@${asset_file_stem}")
+        set(preload_cmd "SHELL:--preload-file \"${asset_file}@${asset_file_stem}\"")
             list(APPEND preload_commands "${preload_cmd}")
         endforeach()
 
