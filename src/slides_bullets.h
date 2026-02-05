@@ -15,6 +15,12 @@ struct Bullet_List_Params
     bool animate = true;
 };
 
+enum Bullet_Flags : uint8_t
+{
+    BULLET_NO_BULLET = 1 << 0,
+    BULLET_UNDERLINE = 1 << 1,
+};
+
 struct Bullet_Params
 {
     std::string text {};
@@ -22,7 +28,7 @@ struct Bullet_Params
     visage::Color text_color {};
     float font {};
     visage::Font::Justification justification { visage::Font::kTopLeft };
-    bool has_bullet { true };
+    uint8_t flags {};
 };
 
 struct Bullet_List : Content_Frame
@@ -57,13 +63,30 @@ struct Bullet_List : Content_Frame
 
             // @TODO: different bullet point options...
             // probably treat bullet point as an image? then the text would be better aligned too...?
-            const auto bullet_text = std::string { bullet_params.has_bullet ? "- " : "" } + bullet_params.text;
+            auto bullet_text = std::string { bullet_params.flags & BULLET_NO_BULLET ? "" : "- " };
+            bullet_text += bullet_params.text;
             canvas.setColor (bullet_params.text_color.withAlpha (alpha));
             auto* stored_text = canvas.getText (bullet_text,
                                                 font (*frame_params.default_params, bullet_params.font),
                                                 bullet_params.justification);
             stored_text->setMultiLine (true);
-            canvas.text (stored_text, 0.0f, 0.0f, width(), height());
+            auto&& text_block = canvas.getTextBlock (stored_text, 0.0f, 0.0f, width(), height());
+
+            if (bullet_params.flags & BULLET_UNDERLINE)
+            {
+                const auto scale = 1.0f / dpiScale();
+                const auto line_x = text_block.actual_bounds.left * scale;
+                const auto line_width = (text_block.actual_bounds.right - text_block.actual_bounds.left) * scale;
+                const auto line_width_padded = line_width * 1.15f * alpha;
+                const auto line_x_padded = line_x - (line_width_padded - line_width) * 0.5f;
+                const auto underline_height = compute_dim (4_vh, *this);
+                canvas.rectangle (line_x_padded,
+                                  height() - underline_height,
+                                  line_width_padded,
+                                  underline_height);
+            }
+
+            canvas.addShape (std::move (text_block));
         }
     };
     std::vector<Bullet*> bullets {};

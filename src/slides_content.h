@@ -8,6 +8,7 @@ struct Content_Frame_Params
 {
     Dims dims {};
     Default_Params* default_params {};
+    float animation_speed { 0.5f };
     bool animate = true;
 };
 
@@ -28,6 +29,8 @@ struct Content_Frame : visage::Frame
     {
         if (! frame_params.animate)
             animation.setAnimationTime (0);
+        else
+            animation.setAnimationTime (visage::Animation<float>::kRegularTime / frame_params.animation_speed);
         animation.setTargetValue (1.0f);
         animation.target (! frame_params.animate);
     }

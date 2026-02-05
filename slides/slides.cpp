@@ -53,7 +53,7 @@ DLL_EXPORT Slideshow* make_slides (Run_Opts&)
                                               .text = "Heading",
                                               .font = 40.0f,
                                               .justification = visage::Font::kCenter,
-                                              .has_bullet = false,
+                                              .flags = BULLET_NO_BULLET | BULLET_UNDERLINE,
                                           },
                                           {
                                               .text = "Bullet point #1",
