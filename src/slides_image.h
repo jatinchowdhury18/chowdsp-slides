@@ -12,7 +12,9 @@ struct Image_Params
     File* image_file {};
     std::array<float, 2> aspect_ratio {};
 
-    // @TODO: caption
+    std::string caption {};
+    visage::Dimension caption_dim { 12_vh };
+    visage::Color caption_color { 0xffffffff };
 };
 
 struct Image : Content_Frame
@@ -65,6 +67,21 @@ struct Image : Content_Frame
         Content_Frame::draw (canvas);
         const auto alpha = fade_alpha();
 
+        auto image_height = height();
+        if (! image_params.caption.empty())
+        {
+            const auto caption_height = compute_dim (image_params.caption_dim, *this);
+            image_height -= caption_height;
+            canvas.setColor (image_params.caption_color.withAlpha (alpha));
+            canvas.text (image_params.caption,
+                         font (*frame_params.default_params, caption_height * 0.5f),
+                         visage::Font::kCenter,
+                         compute_dim (0_vw, *this),
+                         image_height,
+                         compute_dim (100_vw, *this),
+                         caption_height);
+        }
+
         if (image_params.image_file != nullptr)
         {
             canvas.setColor (visage::Color { 0xffffffff }.withAlpha (alpha));
@@ -74,7 +91,7 @@ struct Image : Content_Frame
             if (image_params.aspect_ratio[0] > 0.0f)
             {
                 const auto bounds = fit_and_center_image (width(),
-                                                          height(),
+                                                          image_height,
                                                           image_params.aspect_ratio[0],
                                                           image_params.aspect_ratio[1]);
                 canvas.image (image_data,
@@ -91,7 +108,7 @@ struct Image : Content_Frame
                               0,
                               0,
                               width(),
-                              height());
+                              image_height);
             }
         }
     }

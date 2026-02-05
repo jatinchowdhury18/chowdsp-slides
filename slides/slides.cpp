@@ -92,6 +92,7 @@ DLL_EXPORT Slideshow* make_slides (Run_Opts&)
                         },
                         .image_file = new File { "assets/bass face.png" },
                         .aspect_ratio = { 1138, 640 },
+                        .caption = "Stanley Clarke (1991)"
                     } },
                 },
             } },
