@@ -79,7 +79,21 @@ DLL_EXPORT Slideshow* make_slides (Run_Opts&)
                 },
             } },
             new Slide { {
-                // .background_color = 0xff00ffff,
+                .background_color = 0xff040404,
+                .title = {
+                    .text = "Bass Face",
+                    .size = 55,
+                    .justification = visage::Font::kLeft,
+                },
+                .content = {
+                    new Image { {
+                        .frame_params {
+                            .dims = { 12_vw, 20_vh, 76_vw, 68_vh },
+                        },
+                        .image_file = new File { "assets/bass face.png" },
+                        .aspect_ratio = { 1138, 640 },
+                    } },
+                },
             } },
         }
     };

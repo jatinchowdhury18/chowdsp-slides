@@ -4,6 +4,7 @@
 
 #include "slides_audio_player.h"
 #include "slides_bullets.h"
+#include "slides_image.h"
 #include "slides_text.h"
 
 namespace chowdsp::slides
@@ -62,8 +63,7 @@ struct Slide : visage::Frame
 
     ~Slide()
     {
-        if (params.background_image != nullptr)
-            delete params.background_image;
+        delete params.background_image;
 
         for (auto* content_frame : params.content)
             delete content_frame;
@@ -158,7 +158,6 @@ struct Slideshow : visage::Frame
     std::string_view name {};
     size_t active_slide = 0;
 
-    // ma_resource_manager audio_resource_manager;
     ma_engine audio_engine;
 
     explicit Slideshow (std::string_view slides_name,
@@ -199,25 +198,11 @@ struct Slideshow : visage::Frame
         delete params;
 
         ma_engine_uninit (&audio_engine);
-        // ma_resource_manager_uninit (&audio_resource_manager);
     }
 
     void init_audio_engine()
     {
         params->audio_engine = &audio_engine;
-
-        // auto audio_resource_manager_config = ma_resource_manager_config_init();
-        // audio_resource_manager_config.decodedFormat = ma_format_f32;
-
-        // // apparently Emscripten needs these two flags?
-        // audio_resource_manager_config.flags |= MA_RESOURCE_MANAGER_FLAG_NO_THREADING;
-        // audio_resource_manager_config.jobThreadCount = 0;
-
-        // auto result = ma_resource_manager_init (&audio_resource_manager_config, &audio_resource_manager);
-        // assert (result == MA_SUCCESS);
-
-        // auto audio_engine_config = ma_engine_config_init();
-        // audio_engine_config.pResourceManager = &audio_resource_manager;
 
         auto result = ma_engine_init (nullptr, &audio_engine);
         assert (result == MA_SUCCESS);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include <visage/app.h>
 using namespace visage::dimension;
 

@@ -1,6 +1,11 @@
 function(package_slides_app)
     if (WIN32)
         set_target_properties(chowdsp_slides PROPERTIES WIN32_EXECUTABLE YES)
+        target_compile_definitions(chowdsp_slides
+            PUBLIC
+                NOMINMAX=1
+                _USE_MATH_DEFINES=1
+        )
     elseif (APPLE)
         set(PROGRAM_NAME chowdsp_slides)
         configure_file(cmake/Info.plist.in ${CMAKE_CURRENT_BINARY_DIR}/chowdsp-slides.plist)
