@@ -206,6 +206,7 @@ struct Audio_Player : Content_Frame
         ma_sound_get_cursor_in_seconds (&sound, &cursor);
         ma_sound_get_length_in_seconds (&sound, &length);
         const auto thumbs_progress = static_cast<size_t> ((float) thumbs_count * cursor / length);
+        const auto thumbs_progress_frac = ((float) thumbs_count * cursor / length) - (float) thumbs_progress;
 
         const auto pad = compute_dim (4_vw, *this);
         const auto height = compute_dim (72_vh, *this);
@@ -214,7 +215,8 @@ struct Audio_Player : Content_Frame
         auto x = pad;
         for (size_t thumb_idx = 0; thumb_idx < thumbs_count; ++thumb_idx)
         {
-            canvas.setColor (visage::Color { thumb_idx >= thumbs_progress ? 0xff4c4f52 : 0xff9978ee }.withAlpha (alpha));
+            canvas.setColor (visage::Color { thumb_idx >= thumbs_progress ? 0xff4c4f52 : 0xff9978ee }
+                                 .withAlpha (alpha));
 
             const auto thumb_height_above = 0.5f * height * thumbs[thumb_idx][0];
             const auto thumb_height_below = 0.5f * height * thumbs[thumb_idx][1];
@@ -223,6 +225,18 @@ struct Audio_Player : Content_Frame
                                      thumb_width,
                                      thumb_height_above + thumb_height_below,
                                      spacing);
+
+            if (thumb_idx == thumbs_progress)
+            {
+                canvas.setColor (visage::Color { 0xff9978ee }
+                                     .withAlpha (alpha * thumbs_progress_frac));
+                canvas.roundedRectangle (x,
+                                         pad + 0.5f * height - thumb_height_above,
+                                         thumb_width,
+                                         thumb_height_above + thumb_height_below,
+                                         spacing);
+            }
+
             x += thumb_width + spacing;
         }
     }
