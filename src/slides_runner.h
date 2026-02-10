@@ -26,7 +26,7 @@ static Slideshow* make_slides_reload (Run_Opts& run_opts)
     namespace fs = std::filesystem;
     std::cout << "Reloading...\n";
 
-    const auto build_cmd = std::string { "cmake --build " } + BUILD_DIR + " --parallel --config Debug --target slides_reload";
+    const auto build_cmd = std::string { "cmake --build " } + BUILD_DIR + " --parallel --config Debug --target " + RELOAD_TARGET;
     auto error_code = std::system (build_cmd.c_str());
     if (error_code != 0)
     {
