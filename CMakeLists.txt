@@ -8,7 +8,9 @@ add_subdirectory(visage)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(chowdsp_slides_dir "${CMAKE_CURRENT_SOURCE_DIR}")
-set(chowdsp_slides_dir "${CMAKE_CURRENT_SOURCE_DIR}" PARENT_SCOPE)
+if (NOT PROJECT_IS_TOP_LEVEL)
+    set(chowdsp_slides_dir "${CMAKE_CURRENT_SOURCE_DIR}" PARENT_SCOPE)
+endif()
 
 include(package)
 slides_app(chowdsp_slides "${CMAKE_CURRENT_SOURCE_DIR}/slides")
