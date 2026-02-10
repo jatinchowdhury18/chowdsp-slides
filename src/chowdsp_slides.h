@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "slides_background_task.h"
+
 #include "slides_audio_player.h"
 #include "slides_bullets.h"
 #include "slides_image.h"
@@ -31,7 +33,7 @@ struct Slide_Params
 
 static void merge_params (Slide_Params& slide_params, const Default_Params& default_params)
 {
-    if (slide_params.background_color.alpha() == 0.0f)
+    if (slide_params.background_color.alpha() == 0.0f && slide_params.background_image == nullptr)
         slide_params.background_color = default_params.background_color;
 
     merge_params (slide_params.title, default_params);
@@ -51,7 +53,7 @@ struct Slide : visage::Frame
     {
         for (auto* content_frame : params.content)
         {
-            addChild (content_frame);
+            addChild (content_frame, ! content_frame->frame_params.animate);
 
             if (content_frame->frame_params.animate || content_frame->animation_steps != 0)
             {
@@ -125,8 +127,11 @@ struct Slide : visage::Frame
             canvas.image (params.background_image->data, params.background_image->size, 0, 0, width(), height());
         }
 
-        canvas.setColor (params.background_color);
-        canvas.fill (0, 0, width(), height());
+        if (params.background_color.alpha() > 0.0f)
+        {
+            canvas.setColor (params.background_color);
+            canvas.fill (0, 0, width(), height());
+        }
 
         if (params.style == Cover)
         {
@@ -159,6 +164,10 @@ struct Slideshow : visage::Frame
     size_t active_slide = 0;
 
     ma_engine audio_engine;
+    Image_Atlas image_atlas { visage::ImageAtlas::DataType::RGBA8 };
+
+    // This doesn't work on the web!
+    // Background_Task background_task {};
 
     explicit Slideshow (std::string_view slides_name,
                         Default_Params* default_params,
@@ -168,6 +177,7 @@ struct Slideshow : visage::Frame
           name { slides_name }
     {
         init_audio_engine();
+        params->image_atlas = &image_atlas;
 
         for (auto* slide : slides)
         {
@@ -206,6 +216,23 @@ struct Slideshow : visage::Frame
 
         auto result = ma_engine_init (nullptr, &audio_engine);
         assert (result == MA_SUCCESS);
+    }
+
+    void resized() override
+    {
+        // @TODO: do this on background thread?
+        // background_task.task_queue.enqueue (
+        //     [this]
+        {
+            const std::lock_guard lock { image_atlas.mutex };
+            const auto start = std::chrono::high_resolution_clock::now();
+            if (image_atlas.count() > 0)
+                image_atlas.textureHandle();
+            const auto end = std::chrono::high_resolution_clock::now();
+            const auto duration = std::chrono::duration_cast<std::chrono::duration<double>> (end - start).count();
+            std::cout << "Updated " << image_atlas.count() << " textures in " << duration << " seconds\n";
+        }
+        // );
     }
 
     void set_active_slide (size_t new_active_slide)
@@ -249,6 +276,26 @@ struct Slideshow : visage::Frame
         if (key.keyCode() == visage::KeyCode::Left)
         {
             previous_step();
+            return true;
+        }
+        if (key.keyCode() == visage::KeyCode::Down)
+        {
+            if (active_slide < slides.size() - 1)
+            {
+                slides[active_slide]->setVisible (false);
+                active_slide++;
+                slides[active_slide]->setVisible (true);
+            }
+            return true;
+        }
+        if (key.keyCode() == visage::KeyCode::Up)
+        {
+            if (active_slide > 0)
+            {
+                slides[active_slide]->setVisible (false);
+                active_slide--;
+                slides[active_slide]->setVisible (true);
+            }
             return true;
         }
 

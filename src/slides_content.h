@@ -44,6 +44,7 @@ struct Content_Frame : visage::Frame
     {
         if (frame_params.animate)
             animation.target (true);
+        setVisible (true);
         redrawAll();
     }
 
@@ -60,6 +61,8 @@ struct Content_Frame : visage::Frame
         animation.update();
         if (is_animating)
             redrawAll();
+        else if (animation.value() == 0.0f)
+            setVisible (false);
     }
 
     virtual float fade_alpha() const

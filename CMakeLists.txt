@@ -7,13 +7,15 @@ project(chowdsp-slides VERSION 0.1.0)
 add_subdirectory(visage)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-add_executable(chowdsp_slides src/slides_main.cpp)
-target_link_libraries(chowdsp_slides PRIVATE visage)
-target_include_directories(chowdsp_slides PRIVATE slides src)
-
-if (NOT EMSCRIPTEN)
-    include(hot_reload)
+set(chowdsp_slides_dir "${CMAKE_CURRENT_SOURCE_DIR}")
+if (NOT PROJECT_IS_TOP_LEVEL)
+    set(chowdsp_slides_dir "${CMAKE_CURRENT_SOURCE_DIR}" PARENT_SCOPE)
 endif()
 
 include(package)
-package_slides_app()
+slides_app(chowdsp_slides "${CMAKE_CURRENT_SOURCE_DIR}/slides")
+
+if (NOT EMSCRIPTEN)
+    include(hot_reload)
+    hot_reload_slides(chowdsp_slides "${CMAKE_CURRENT_SOURCE_DIR}/slides")
+endif()
