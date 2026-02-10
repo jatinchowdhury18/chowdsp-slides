@@ -31,7 +31,7 @@ struct Slide_Params
 
 static void merge_params (Slide_Params& slide_params, const Default_Params& default_params)
 {
-    if (slide_params.background_color.alpha() == 0.0f)
+    if (slide_params.background_color.alpha() == 0.0f && slide_params.background_image == nullptr)
         slide_params.background_color = default_params.background_color;
 
     merge_params (slide_params.title, default_params);
@@ -51,7 +51,7 @@ struct Slide : visage::Frame
     {
         for (auto* content_frame : params.content)
         {
-            addChild (content_frame);
+            addChild (content_frame, ! content_frame->frame_params.animate);
 
             if (content_frame->frame_params.animate || content_frame->animation_steps != 0)
             {
@@ -125,8 +125,11 @@ struct Slide : visage::Frame
             canvas.image (params.background_image->data, params.background_image->size, 0, 0, width(), height());
         }
 
-        canvas.setColor (params.background_color);
-        canvas.fill (0, 0, width(), height());
+        if (params.background_color.alpha() > 0.0f)
+        {
+            canvas.setColor (params.background_color);
+            canvas.fill (0, 0, width(), height());
+        }
 
         if (params.style == Cover)
         {
@@ -249,6 +252,26 @@ struct Slideshow : visage::Frame
         if (key.keyCode() == visage::KeyCode::Left)
         {
             previous_step();
+            return true;
+        }
+        if (key.keyCode() == visage::KeyCode::Down)
+        {
+            if (active_slide < slides.size() - 1)
+            {
+                slides[active_slide]->setVisible (false);
+                active_slide++;
+                slides[active_slide]->setVisible (true);
+            }
+            return true;
+        }
+        if (key.keyCode() == visage::KeyCode::Up)
+        {
+            if (active_slide > 0)
+            {
+                slides[active_slide]->setVisible (false);
+                active_slide--;
+                slides[active_slide]->setVisible (true);
+            }
             return true;
         }
 

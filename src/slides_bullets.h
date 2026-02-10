@@ -10,8 +10,8 @@ struct Bullet_List_Params
     visage::Color background_color { 0xff212529 };
     visage::Color text_color { 0xffffffff };
     float font { 30.0f };
-    visage::Dimension padding { 2_vh };
-    visage::Dimension indent { 3_vw };
+    visage::Dimension padding { visage::Dimension::heightPercent (2.25) };
+    visage::Dimension indent { 4_vw };
     bool animate = true;
 };
 
@@ -28,6 +28,7 @@ struct Bullet_Params
     visage::Color text_color {};
     float font {};
     visage::Font::Justification justification { visage::Font::kTopLeft };
+    visage::Dimension y_pad { 0_vh };
     uint8_t flags {};
 };
 
@@ -75,13 +76,19 @@ struct Bullet_List : Content_Frame
             if (bullet_params.flags & BULLET_UNDERLINE)
             {
                 const auto scale = 1.0f / dpiScale();
+
                 const auto line_x = text_block.actual_bounds.left * scale;
                 const auto line_width = (text_block.actual_bounds.right - text_block.actual_bounds.left) * scale;
                 const auto line_width_padded = line_width * 1.15f * alpha;
                 const auto line_x_padded = line_x - (line_width_padded - line_width) * 0.5f;
+
                 const auto underline_height = compute_dim (4_vh, *this);
+                const auto text_y_pad = (height() - bullet_params.font) * 0.5f;
+                const auto text_bottom = text_y_pad + bullet_params.font;
+                const auto line_y = std::min (text_bottom + 2 * underline_height, height() - underline_height);
+
                 canvas.rectangle (line_x_padded,
-                                  height() - underline_height,
+                                  line_y,
                                   line_width_padded,
                                   underline_height);
             }
@@ -140,7 +147,7 @@ struct Bullet_List : Content_Frame
             const auto x = indent_x * bullet->bullet_params.indent + pad_x;
             const auto height = bullet->bullet_params.font + pad_y;
             bullet->setBounds (x, y, width(), height);
-            y += height;
+            y += height + compute_dim (bullet->bullet_params.y_pad, *this);
         }
     }
 
