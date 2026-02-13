@@ -146,7 +146,7 @@ struct Bullet_List : Content_Frame
 
             const auto x = indent_x * bullet->bullet_params.indent + pad_x;
             const auto height = bullet->bullet_params.font + pad_y;
-            bullet->setBounds (x, y, width(), height);
+            bullet->setBounds (x, y, width() - 2 * pad_x, height);
             y += height + compute_dim (bullet->bullet_params.y_pad, *this);
         }
     }
