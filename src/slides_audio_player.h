@@ -191,15 +191,19 @@ struct Audio_Player : Content_Frame
         canvas.roundedRectangle (0, 0, width(), height(), height() * 0.05);
 
         // label
-        canvas.setColor (visage::Color { player_params.label_color }
-                             .withAlpha (alpha));
-        canvas.text (player_params.label,
-                     font (*frame_params.default_params, compute_dim (12_vh, *this)),
-                     visage::Font::kCenter,
-                     compute_dim (0_vw, *this),
-                     compute_dim (80_vh, *this),
-                     compute_dim (100_vw, *this),
-                     compute_dim (20_vh, *this));
+        const auto has_label = ! player_params.label.empty();
+        if (has_label)
+        {
+            canvas.setColor (visage::Color { player_params.label_color }
+                                 .withAlpha (alpha));
+            canvas.text (player_params.label,
+                         font (*frame_params.default_params, compute_dim (12_vh, *this)),
+                         visage::Font::kCenter,
+                         compute_dim (0_vw, *this),
+                         compute_dim (80_vh, *this),
+                         compute_dim (100_vw, *this),
+                         compute_dim (20_vh, *this));
+        }
 
         // thumbnail
         float cursor, length;
@@ -213,6 +217,7 @@ struct Audio_Player : Content_Frame
         const auto spacing = width() * 0.005f;
         const auto thumb_width = ((width() - 2.0f * pad) / (float) thumbs_count) - spacing;
         auto x = pad;
+        const auto y_off = has_label ? compute_dim (6_vh, *this) : 0.0f;
         for (size_t thumb_idx = 0; thumb_idx < thumbs_count; ++thumb_idx)
         {
             canvas.setColor (visage::Color { thumb_idx >= thumbs_progress ? 0xff4c4f52 : 0xff9978ee }
@@ -221,7 +226,7 @@ struct Audio_Player : Content_Frame
             const auto thumb_height_above = 0.5f * height * thumbs[thumb_idx][0];
             const auto thumb_height_below = 0.5f * height * thumbs[thumb_idx][1];
             canvas.roundedRectangle (x,
-                                     pad + 0.5f * height - thumb_height_above,
+                                     pad + 0.5f * height - thumb_height_above - y_off,
                                      thumb_width,
                                      thumb_height_above + thumb_height_below,
                                      spacing);
@@ -231,7 +236,7 @@ struct Audio_Player : Content_Frame
                 canvas.setColor (visage::Color { 0xff9978ee }
                                      .withAlpha (alpha * thumbs_progress_frac));
                 canvas.roundedRectangle (x,
-                                         pad + 0.5f * height - thumb_height_above,
+                                         pad + 0.5f * height - thumb_height_above - y_off,
                                          thumb_width,
                                          thumb_height_above + thumb_height_below,
                                          spacing);
