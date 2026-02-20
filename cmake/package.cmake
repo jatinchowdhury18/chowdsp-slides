@@ -18,6 +18,21 @@ function(slides_app target target_dir)
             MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_BINARY_DIR}/chowdsp-slides.plist
         )
     elseif (EMSCRIPTEN)
+        # target_compile_options(bx PUBLIC -pthread)
+        # target_compile_options(bgfx PUBLIC -pthread)
+        # target_compile_options(bx PUBLIC -pthread)
+        # target_compile_options(bimg_decode PUBLIC -pthread)
+        # target_compile_options(bimg_encode PUBLIC -pthread)
+        # target_compile_options(freetype PUBLIC -pthread)
+        # target_compile_options(visage PUBLIC -pthread)
+        # target_compile_options(VisageApp PUBLIC -pthread)
+        # target_compile_options(VisageGraphics PUBLIC -pthread)
+        # target_compile_options(VisageUtils PUBLIC -pthread)
+        # target_compile_options(VisageUi PUBLIC -pthread)
+        # target_compile_options(VisageWidgets PUBLIC -pthread)
+        # target_compile_options(VisageWindowing PUBLIC -pthread)
+        # target_compile_options(chowdsp_slides PUBLIC -pthread)
+
         file(GLOB asset_files ${target_dir}/assets/*)
         set(preload_commands "")
         foreach(asset_file ${asset_files})
@@ -29,6 +44,7 @@ function(slides_app target target_dir)
 
         target_link_options(${target}
             PRIVATE
+            # -pthread
             --shell-file ${target_dir}/slides.html
             ${preload_commands}
             -sGL_ENABLE_GET_PROC_ADDRESS
@@ -36,6 +52,7 @@ function(slides_app target target_dir)
             --bind
             "-sEXPORTED_FUNCTIONS=['_main', '_pasteCallback']"
             "-sEXPORTED_RUNTIME_METHODS=['ccall', 'cwrap', 'UTF8ToString']"
+            # "-sASSERTIONS"
         )
 
         set_target_properties(${target} PROPERTIES

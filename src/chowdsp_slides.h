@@ -166,7 +166,8 @@ struct Slideshow : visage::Frame
     ma_engine audio_engine;
     Image_Atlas image_atlas { visage::ImageAtlas::DataType::RGBA8 };
 
-    Background_Task background_task {};
+    // This doesn't work on the web!
+    // Background_Task background_task {};
 
     explicit Slideshow (std::string_view slides_name,
                         Default_Params* default_params,
