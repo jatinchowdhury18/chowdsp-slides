@@ -6,6 +6,12 @@
 
 namespace chowdsp::slides
 {
+struct Image_Atlas : visage::ImageAtlas
+{
+    using ImageAtlas::ImageAtlas;
+    std::mutex mutex {};
+};
+
 struct Image_Params
 {
     Content_Frame_Params frame_params {};
@@ -20,6 +26,7 @@ struct Image_Params
 struct Image : Content_Frame
 {
     Image_Params image_params;
+    visage::ImageAtlas::PackedImage packed_image { {} };
 
     Image (Image_Params params)
         : Content_Frame { params.frame_params },
@@ -62,6 +69,40 @@ struct Image : Content_Frame
         return result;
     }
 
+    void resized() override
+    {
+        auto image_height = height();
+        if (! image_params.caption.empty())
+        {
+            const auto caption_height = compute_dim (image_params.caption_dim, *this);
+            image_height -= caption_height;
+        }
+
+        if (image_params.image_file != nullptr)
+        {
+            const auto image_data = image_params.image_file->data;
+            const auto image_data_size = image_params.image_file->size;
+
+            float w = width();
+            float h = image_height;
+            if (image_params.aspect_ratio[0] > 0.0f)
+            {
+                const auto bounds = fit_and_center_image (width(),
+                                                          image_height,
+                                                          image_params.aspect_ratio[0],
+                                                          image_params.aspect_ratio[1]);
+                w = bounds[2];
+                h = bounds[3];
+            }
+            visage::Image image { image_data,
+                                  (int) image_data_size,
+                                  static_cast<int> (w * dpiScale()),
+                                  static_cast<int> (h * dpiScale()) };
+            const std::lock_guard lock { frame_params.default_params->image_atlas->mutex };
+            packed_image = frame_params.default_params->image_atlas->addImage (image);
+        }
+    }
+
     void draw (visage::Canvas& canvas) override
     {
         Content_Frame::draw (canvas);
@@ -85,30 +126,33 @@ struct Image : Content_Frame
         if (image_params.image_file != nullptr)
         {
             canvas.setColor (visage::Color { 0xffffffff }.withAlpha (alpha));
-            const auto image_data = image_params.image_file->data;
-            const auto image_data_size = image_params.image_file->size;
 
+            std::array<float, 4> bounds { 0, 0, width(), image_height };
             if (image_params.aspect_ratio[0] > 0.0f)
             {
-                const auto bounds = fit_and_center_image (width(),
-                                                          image_height,
-                                                          image_params.aspect_ratio[0],
-                                                          image_params.aspect_ratio[1]);
-                canvas.image (image_data,
-                              image_data_size,
-                              bounds[0],
-                              bounds[1],
-                              bounds[2],
-                              bounds[3]);
+                bounds = fit_and_center_image (width(),
+                                               image_height,
+                                               image_params.aspect_ratio[0],
+                                               image_params.aspect_ratio[1]);
+            }
+
+            if (frame_params.default_params->image_atlas->mutex.try_lock())
+            {
+                canvas.addShape (
+                    visage::ImageRefWrapper (
+                        canvas.state()->clamp,
+                        canvas.state()->brush,
+                        canvas.state()->x + canvas.pixels (bounds[0]),
+                        canvas.state()->y + canvas.pixels (bounds[1]),
+                        canvas.pixels (bounds[2]),
+                        canvas.pixels (bounds[3]),
+                        packed_image,
+                        frame_params.default_params->image_atlas));
+                frame_params.default_params->image_atlas->mutex.unlock();
             }
             else
             {
-                canvas.image (image_data,
-                              image_data_size,
-                              0,
-                              0,
-                              width(),
-                              image_height);
+                redraw();
             }
         }
     }

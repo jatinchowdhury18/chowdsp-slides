@@ -12,6 +12,7 @@ using namespace visage::dimension;
 
 namespace chowdsp::slides
 {
+struct Image_Atlas;
 struct Default_Params
 {
     File* font {};
@@ -19,6 +20,7 @@ struct Default_Params
     visage::Color text_color { 0xffffffff };
 
     ma_engine* audio_engine {};
+    Image_Atlas* image_atlas {};
 };
 
 using Dims = std::array<visage::Dimension, 4>;

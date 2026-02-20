@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "slides_background_task.h"
+
 #include "slides_audio_player.h"
 #include "slides_bullets.h"
 #include "slides_image.h"
@@ -162,6 +164,9 @@ struct Slideshow : visage::Frame
     size_t active_slide = 0;
 
     ma_engine audio_engine;
+    Image_Atlas image_atlas { visage::ImageAtlas::DataType::RGBA8 };
+
+    Background_Task background_task {};
 
     explicit Slideshow (std::string_view slides_name,
                         Default_Params* default_params,
@@ -171,6 +176,7 @@ struct Slideshow : visage::Frame
           name { slides_name }
     {
         init_audio_engine();
+        params->image_atlas = &image_atlas;
 
         for (auto* slide : slides)
         {
@@ -209,6 +215,22 @@ struct Slideshow : visage::Frame
 
         auto result = ma_engine_init (nullptr, &audio_engine);
         assert (result == MA_SUCCESS);
+    }
+
+    void resized() override
+    {
+        // @TODO: do this on background thread?
+        // background_task.task_queue.enqueue (
+        //     [this]
+        {
+            const std::lock_guard lock { image_atlas.mutex };
+            const auto start = std::chrono::high_resolution_clock::now();
+            image_atlas.textureHandle();
+            const auto end = std::chrono::high_resolution_clock::now();
+            const auto duration = std::chrono::duration_cast<std::chrono::duration<double>> (end - start).count();
+            std::cout << "Updated " << image_atlas.count() << " textures in " << duration << " seconds\n";
+        }
+        // );
     }
 
     void set_active_slide (size_t new_active_slide)
