@@ -131,7 +131,7 @@ struct Bullet_List : Content_Frame
         canvas.setColor (visage::Color { bullet_list_params.background_color }
                              .withAlpha (fade_alpha()));
         const auto pad = compute_dim (bullet_list_params.padding, *this);
-        canvas.roundedRectangle (0, 0, width(), height(), pad * 2);
+        canvas.roundedRectangle (0, 0, width(), height(), pad);
     }
 
     void resized() override

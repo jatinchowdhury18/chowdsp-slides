@@ -96,8 +96,8 @@ struct Image : Content_Frame
             }
             visage::Image image { image_data,
                                   (int) image_data_size,
-                                  static_cast<int> (w * dpiScale()),
-                                  static_cast<int> (h * dpiScale()) };
+                                  static_cast<int> (std::round (w * dpiScale())),
+                                  static_cast<int> (std::round (h * dpiScale())) };
             const std::lock_guard lock { frame_params.default_params->image_atlas->mutex };
             packed_image = frame_params.default_params->image_atlas->addImage (image);
         }
