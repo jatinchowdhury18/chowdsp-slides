@@ -16,6 +16,5 @@ include(package)
 slides_app(chowdsp_slides "${CMAKE_CURRENT_SOURCE_DIR}/slides")
 
 if (NOT EMSCRIPTEN)
-    include(hot_reload)
-    hot_reload_slides(chowdsp_slides "${CMAKE_CURRENT_SOURCE_DIR}/slides")
+    target_compile_definitions(chowdsp_slides PRIVATE ALLOW_HOT_RELOAD=1)
 endif()

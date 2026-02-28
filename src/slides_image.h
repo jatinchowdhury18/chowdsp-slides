@@ -2,7 +2,11 @@
 
 #include <filesystem>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "third_party/stb_image.h"
+
 #include "slides_content.h"
+#include "slides_url.h"
 
 namespace chowdsp::slides
 {
@@ -14,22 +18,55 @@ struct Image_Atlas : visage::ImageAtlas
 
 struct Image_Params
 {
-    Content_Frame_Params frame_params {};
     File* image_file {};
     std::array<float, 2> aspect_ratio {};
 
     std::string caption {};
     visage::Dimension caption_dim { 12_vh };
     visage::Color caption_color { 0xffffffff };
+    std::string link_url {};
 };
+
+static void merge_params (Image_Params& image, const Default_Params& params)
+{
+    if (image.caption_color.alpha() == 0.0f)
+        image.caption_color = params.text_color;
+}
+
+static std::array<float, 2> get_aspect_ratio (const File* file)
+{
+    if (file == nullptr)
+        return {};
+
+    int width, height, channels;
+    if (stbi_info_from_memory (file->data, (int) file->size, &width, &height, &channels))
+    {
+        return { (float) width, (float) height };
+    }
+
+    return {};
+}
+
+static Image_Params gon_image_params (Gon_Ref gon)
+{
+    const auto file = gon_file (gon["file_path"]);
+    return Image_Params {
+        .image_file = file,
+        .aspect_ratio = get_aspect_ratio (file),
+        .caption = gon["caption"].String ({}),
+        .caption_dim = gon_dim (gon["caption_dim"], 12_vh),
+        .caption_color = gon["caption_color"].Int ({}),
+        .link_url = gon["link_url"].String ({}),
+    };
+}
 
 struct Image : Content_Frame
 {
     Image_Params image_params;
     visage::ImageAtlas::PackedImage packed_image { {} };
 
-    Image (Image_Params params)
-        : Content_Frame { params.frame_params },
+    Image (Content_Frame_Params frame_params, Image_Params params)
+        : Content_Frame { frame_params },
           image_params { params }
     {
     }
@@ -39,34 +76,10 @@ struct Image : Content_Frame
         delete image_params.image_file;
     }
 
-    std::array<float, 4> fit_and_center_image (float container_width,
-                                               float container_height,
-                                               float image_width,
-                                               float image_height)
+    void set_default_params (Default_Params* default_params) override
     {
-        float container_aspect_ratio = container_width / container_height;
-        float image_aspect_ratio = image_width / image_height;
-
-        std::array<float, 4> result {};
-
-        if (container_aspect_ratio > image_aspect_ratio)
-        {
-            // Container is wider than image
-            result[3] = container_height;
-            result[2] = container_height * image_aspect_ratio;
-        }
-        else
-        {
-            // Container is taller than image
-            result[2] = container_width;
-            result[3] = container_width / image_aspect_ratio;
-        }
-
-        // Center it
-        result[0] = (container_width - result[2]) * 0.5f;
-        result[1] = (container_height - result[3]) * 0.5f;
-
-        return result;
+        Content_Frame::set_default_params (default_params);
+        merge_params (image_params, *default_params);
     }
 
     void resized() override
@@ -87,10 +100,10 @@ struct Image : Content_Frame
             float h = image_height;
             if (image_params.aspect_ratio[0] > 0.0f)
             {
-                const auto bounds = fit_and_center_image (width(),
-                                                          image_height,
-                                                          image_params.aspect_ratio[0],
-                                                          image_params.aspect_ratio[1]);
+                const auto bounds = fit_and_center (width(),
+                                                    image_height,
+                                                    image_params.aspect_ratio[0],
+                                                    image_params.aspect_ratio[1]);
                 w = bounds[2];
                 h = bounds[3];
             }
@@ -130,10 +143,10 @@ struct Image : Content_Frame
             std::array<float, 4> bounds { 0, 0, width(), image_height };
             if (image_params.aspect_ratio[0] > 0.0f)
             {
-                bounds = fit_and_center_image (width(),
-                                               image_height,
-                                               image_params.aspect_ratio[0],
-                                               image_params.aspect_ratio[1]);
+                bounds = fit_and_center (width(),
+                                         image_height,
+                                         image_params.aspect_ratio[0],
+                                         image_params.aspect_ratio[1]);
             }
 
             if (frame_params.default_params->image_atlas->mutex.try_lock())
@@ -155,6 +168,55 @@ struct Image : Content_Frame
                 redraw();
             }
         }
+    }
+
+    bool is_mouse_on_image (const visage::MouseEvent& e) const
+    {
+        auto image_height = height();
+        if (! image_params.caption.empty())
+        {
+            const auto caption_height = compute_dim (image_params.caption_dim, *this);
+            image_height -= caption_height;
+        }
+
+        std::array<float, 4> bounds { 0, 0, width(), image_height };
+        if (image_params.aspect_ratio[0] > 0.0f)
+        {
+            bounds = fit_and_center (width(),
+                                     image_height,
+                                     image_params.aspect_ratio[0],
+                                     image_params.aspect_ratio[1]);
+        }
+
+        const auto is_in_x_range = e.position.x >= bounds[0] && e.position.x <= (bounds[0] + bounds[2]);
+        const auto is_in_y_range = e.position.y >= bounds[1] && e.position.y <= (bounds[1] + bounds[3]);
+        return is_in_x_range && is_in_y_range;
+    }
+
+    bool can_click_url (const visage::MouseEvent& e) const
+    {
+        return is_mouse_on_image (e) && ! image_params.link_url.empty();
+    }
+
+    void mouseEnter (const visage::MouseEvent& e) override
+    {
+        mouseMove (e);
+    }
+
+    void mouseMove (const visage::MouseEvent& e) override
+    {
+        setCursorStyle (can_click_url (e) ? visage::MouseCursor::Pointing : visage::MouseCursor::Arrow);
+    }
+
+    void mouseExit (const visage::MouseEvent&) override
+    {
+        setCursorStyle (visage::MouseCursor::Arrow);
+    }
+
+    void mouseDown (const visage::MouseEvent& e) override
+    {
+        if (can_click_url (e))
+            launch_url (image_params.link_url);
     }
 };
 } // namespace chowdsp::slides

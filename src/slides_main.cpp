@@ -1,5 +1,4 @@
 #include "slides_runner.h"
-#include <slides.cpp>
 
 #if CHOWDSP_SLIDES_WINDOWS
 #include <windows.h>
@@ -27,9 +26,7 @@ int main (int argc, char* argv[])
 int WINAPI WinMain (_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 #endif
 {
-    chowdsp::slides::Run_Opts run_opts {
-        .slides_maker = &make_slides,
-    };
+    chowdsp::slides::Run_Opts run_opts {};
 
 #if CHOWDSP_SLIDES_WINDOWS
     int argc;

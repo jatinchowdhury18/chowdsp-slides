@@ -1,0 +1,119 @@
+title = "ChowDSP Slides"
+author = "Jatin Chowdhury"
+
+params = {
+    font = "assets/Lato-Regular.ttf"
+    footer = {
+        height = 4_vh
+        style = "PROGRESS_WITH_NUMBER"
+    }
+}
+
+slides = [
+    {
+        background_image = "assets/background.jpg"
+        background_color = 0x33000000
+        style = "Cover"
+
+        title = {
+            text = "ChowDSP Slides"
+            size = 12_vh
+            justification = "Center"
+        }
+
+        text = [
+            {
+                text = "Jatin Chowdhury"
+                size = 8_vh
+                justification = "Center"
+                dims = ["0_vw", "50_vh", "100_vw", "50_vh"]
+            },
+        ]
+    },
+
+    {
+        title = {
+            text = "Slide #1"
+            size = 8_vh
+            justification = "Left"
+        }
+
+        content = [
+            {
+                type = "bullet_list"
+
+                frame_params = {
+                    dims = ["2_vw", "10_vh", "47_vw", "88_vh"]
+                }
+
+                bullets = [
+                    {
+                        text = "Heading"
+                        font_height = "4.5_vh"
+                        y_pad = "1.5_vh"
+                        justification = "Center"
+                        flags = [
+                            "BULLET_NO_BULLET",
+                            "BULLET_UNDERLINE",
+                        ]
+                    },
+                    {
+                        text = "Bullet point #1"
+                    },
+                    {
+                        text = "Bullet point #2"
+                    },
+                    {
+                        text = "sub-bullet point #1"
+                        indent = 1
+                    },
+                    {
+                        text = "sub-bullet point #2"
+                        indent = 1
+                    },
+                    {
+                        text = "sub-sub-bullet point #1"
+                        indent = 2
+                    },
+                ]
+            },
+
+            {
+                type = "audio_player"
+
+                frame_params = {
+                    dims = ["51_vw", "10_vh", "47_vw", "25_vh"]
+                }
+
+                params = {
+                    file_path = "assets/test.wav"
+                }
+            },
+        ]
+    },
+
+    {
+        background_color = 0xff000000
+        title = {
+            text = "Bass Face"
+            size = 8_vh
+            justification = "Left"
+        }
+
+        content = [
+            {
+                type = "image"
+
+                frame_params = {
+                    dims = ["12_vw", "20_vh", "76_vw", "68_vh"]
+                }
+
+                params = {
+                    file_path = "assets/bass face.png"
+                    caption = "Stanley Clarke (1991)"
+                    link_url = "https://www.youtube.com/watch?v=vLMrenP_nFc"
+                }
+            },
+        ]
+    },
+]

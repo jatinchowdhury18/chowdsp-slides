@@ -12,6 +12,15 @@ struct Content_Frame_Params
     bool animate = true;
 };
 
+static Content_Frame_Params gon_content_frame_params (Gon_Ref gon)
+{
+    return Content_Frame_Params {
+        .dims = gon_dims (gon["dims"]),
+        .animation_speed = (float) gon["animation_speed"].Number (0.5f),
+        .animate = gon["animate"].Bool (true),
+    };
+}
+
 struct Content_Frame : visage::Frame
 {
     Content_Frame_Params frame_params {};

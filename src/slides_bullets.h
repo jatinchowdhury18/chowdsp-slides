@@ -1,19 +1,31 @@
 #pragma once
 
 #include "slides_content.h"
+#include "slides_text.h"
 
 namespace chowdsp::slides
 {
 struct Bullet_List_Params
 {
-    Content_Frame_Params frame_params {};
     visage::Color background_color { 0xff212529 };
     visage::Color text_color { 0xffffffff };
-    float font { 30.0f };
-    visage::Dimension padding { visage::Dimension::heightPercent (2.25) };
+    visage::Dimension font_height { visage::Dimension::heightPercent (3.5) };
+    visage::Dimension padding { visage::Dimension::heightPercent (3.5) };
     visage::Dimension indent { 4_vw };
     bool animate = true;
 };
+
+static Bullet_List_Params gon_bullet_list_params (Gon_Ref gon)
+{
+    return Bullet_List_Params {
+        .background_color = gon["background_color"].UInt (0xff212529),
+        .text_color = gon["text_color"].UInt (0xffffffff),
+        .font_height = gon_dim (gon["font_height"], visage::Dimension::heightPercent (3.0)),
+        .padding = gon_dim (gon["padding"], visage::Dimension::heightPercent (1.5)),
+        .indent = gon_dim (gon["indent"], 4_vw),
+        .animate = gon["animate"].Bool (true),
+    };
+}
 
 enum Bullet_Flags : uint8_t
 {
@@ -26,11 +38,46 @@ struct Bullet_Params
     std::string text {};
     int indent = 0;
     visage::Color text_color {};
-    float font {};
+    visage::Dimension font_height {};
     visage::Font::Justification justification { visage::Font::kTopLeft };
     visage::Dimension y_pad { 0_vh };
     uint8_t flags {};
 };
+
+static Bullet_Params gon_bullet_params (Gon_Ref gon)
+{
+    Bullet_Params params {
+        .text = gon["text"].String ({}),
+        .indent = gon["indent"].Int ({}),
+        .text_color = gon["text_color"].UInt ({}),
+        .font_height = gon_dim (gon["font_height"]),
+        .justification = gon_justification (gon["justification"], visage::Font::kTopLeft),
+        .y_pad = gon_dim (gon["y_pad"], 0_vh),
+    };
+
+    const auto flags = gon["flags"];
+    for (auto flag : flags)
+    {
+        const auto flag_str = flag.String ({});
+        if (flag_str == "BULLET_NO_BULLET")
+            params.flags |= BULLET_NO_BULLET;
+        else if (flag_str == "BULLET_UNDERLINE")
+            params.flags |= BULLET_UNDERLINE;
+    }
+
+    return params;
+}
+
+static std::vector<Bullet_Params> gon_bullet_params_array (Gon_Ref gon)
+{
+    std::vector<Bullet_Params> res {};
+    res.reserve (gon.size());
+
+    for (const auto& g : gon)
+        res.push_back (gon_bullet_params (g));
+
+    return res;
+}
 
 struct Bullet_List : Content_Frame
 {
@@ -67,8 +114,9 @@ struct Bullet_List : Content_Frame
             auto bullet_text = std::string { bullet_params.flags & BULLET_NO_BULLET ? "" : "- " };
             bullet_text += bullet_params.text;
             canvas.setColor (bullet_params.text_color.withAlpha (alpha));
+            const auto font_height = compute_dim (bullet_params.font_height, *frame_params.default_params->slideshow_frame);
             auto* stored_text = canvas.getText (bullet_text,
-                                                font (*frame_params.default_params, bullet_params.font),
+                                                font (*frame_params.default_params, font_height),
                                                 bullet_params.justification);
             stored_text->setMultiLine (true);
             auto&& text_block = canvas.getTextBlock (stored_text, 0.0f, 0.0f, width(), height());
@@ -83,8 +131,8 @@ struct Bullet_List : Content_Frame
                 const auto line_x_padded = line_x - (line_width_padded - line_width) * 0.5f;
 
                 const auto underline_height = compute_dim (4_vh, *this);
-                const auto text_y_pad = (height() - bullet_params.font) * 0.5f;
-                const auto text_bottom = text_y_pad + bullet_params.font;
+                const auto text_y_pad = (height() - font_height) * 0.5f;
+                const auto text_bottom = text_y_pad + font_height;
                 const auto line_y = std::min (text_bottom + 2 * underline_height, height() - underline_height);
 
                 canvas.rectangle (line_x_padded,
@@ -98,9 +146,10 @@ struct Bullet_List : Content_Frame
     };
     std::vector<Bullet*> bullets {};
 
-    Bullet_List (Bullet_List_Params this_list_params,
-                 std::initializer_list<Bullet_Params> bullet_params = {})
-        : Content_Frame { this_list_params.frame_params },
+    Bullet_List (Content_Frame_Params frame_params,
+                 Bullet_List_Params this_list_params,
+                 std::vector<Bullet_Params> bullet_params = {})
+        : Content_Frame { frame_params },
           bullet_list_params { this_list_params }
     {
         if (bullet_list_params.animate)
@@ -110,8 +159,8 @@ struct Bullet_List : Content_Frame
         {
             if (one_bullet_params.text_color.alpha() == 0.0f)
                 one_bullet_params.text_color = bullet_list_params.text_color;
-            if (one_bullet_params.font == 0.0f)
-                one_bullet_params.font = bullet_list_params.font;
+            if (one_bullet_params.font_height.amount == 0.0f)
+                one_bullet_params.font_height = bullet_list_params.font_height;
             auto& new_bullet = bullets.emplace_back (new Bullet { one_bullet_params, bullet_list_params.animate });
             new_bullet->parent = this;
             addChild (new_bullet);
@@ -130,24 +179,25 @@ struct Bullet_List : Content_Frame
 
         canvas.setColor (visage::Color { bullet_list_params.background_color }
                              .withAlpha (fade_alpha()));
-        const auto pad = compute_dim (bullet_list_params.padding, *this);
+        const auto pad = compute_dim (bullet_list_params.padding, *frame_params.default_params->slideshow_frame);
         canvas.roundedRectangle (0, 0, width(), height(), pad);
     }
 
     void resized() override
     {
         const auto indent_x = compute_dim (bullet_list_params.indent, *this);
-        const auto pad_x = compute_dim (bullet_list_params.padding, *this);
-        const auto pad_y = compute_dim (bullet_list_params.padding, *this);
+        const auto pad_x = compute_dim (bullet_list_params.padding, *frame_params.default_params->slideshow_frame);
+        const auto pad_y = pad_x;
         auto y = pad_y;
         for (auto* bullet : bullets)
         {
             bullet->frame_params.default_params = frame_params.default_params;
 
             const auto x = indent_x * bullet->bullet_params.indent + pad_x;
-            const auto height = bullet->bullet_params.font + pad_y;
+            const auto font_height = compute_dim (bullet->bullet_params.font_height, *frame_params.default_params->slideshow_frame);
+            const auto height = font_height + pad_y;
             bullet->setBounds (x, y, width() - 2 * pad_x, height);
-            y += height + compute_dim (bullet->bullet_params.y_pad, *this);
+            y += height + compute_dim (bullet->bullet_params.y_pad, *frame_params.default_params->slideshow_frame);
         }
     }
 

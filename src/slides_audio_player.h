@@ -9,12 +9,21 @@ namespace chowdsp::slides
 {
 struct Audio_Player_Params
 {
-    Content_Frame_Params frame_params {};
-    std::string_view file_path {};
+    std::string file_path {};
     visage::Color background_color { 0xff181B1F };
     visage::Color label_color { 0xffffffff };
     std::string label {};
 };
+
+static Audio_Player_Params gon_audio_player_params (Gon_Ref gon)
+{
+    return Audio_Player_Params {
+        .file_path = gon["file_path"].String ({}),
+        .background_color = gon["background_color"].UInt (0xff181B1F),
+        .label_color = gon["label_color"].Int (0xffffffff),
+        .label = gon["label"].String ({}),
+    };
+}
 
 struct Audio_Player : Content_Frame
 {
@@ -60,8 +69,8 @@ struct Audio_Player : Content_Frame
 
     visage::EventTimer timer {};
 
-    Audio_Player (Audio_Player_Params params)
-        : Content_Frame { params.frame_params },
+    Audio_Player (Content_Frame_Params frame_params, Audio_Player_Params params)
+        : Content_Frame { frame_params },
           player_params { params }
     {
         addChild (play_pause_button);
