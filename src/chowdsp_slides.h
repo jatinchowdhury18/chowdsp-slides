@@ -96,7 +96,6 @@ static Slide_Params gon_slide_params (Gon_Ref gon)
 
 static void merge_params (Slide_Params& slide_params, const Default_Params& default_params)
 {
-    std::cout << "Background colour: " << slide_params.background_color.toARGBHexString() << '\n';
     if (slide_params.background_color.alpha() == 0.0f && slide_params.background_image == nullptr)
         slide_params.background_color = default_params.background_color;
 
