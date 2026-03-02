@@ -1,7 +1,14 @@
 function(slides_app target target_dir)
+
     add_executable(${target} ${chowdsp_slides_dir}/src/slides_main.cpp)
     target_link_libraries(${target} PRIVATE visage)
     target_include_directories(${target} PRIVATE ${target_dir} ${chowdsp_slides_dir}/src)
+
+    set(js_sources "${chowdsp_slides_dir}/src/third_party/mathjax-bundle/mathjax-embedded.js")
+    if(NOT EMSCRIPTEN)
+        add_embedded_resources(embedded_js "embedded_js.h" "chowdsp::slides::resources::js" "${js_sources}")
+        target_link_libraries(${target} PRIVATE embedded_js)
+    endif()
 
     if (WIN32)
         set_target_properties(${target} PROPERTIES WIN32_EXECUTABLE YES)
@@ -18,21 +25,6 @@ function(slides_app target target_dir)
             MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_BINARY_DIR}/chowdsp-slides.plist
         )
     elseif (EMSCRIPTEN)
-        # target_compile_options(bx PUBLIC -pthread)
-        # target_compile_options(bgfx PUBLIC -pthread)
-        # target_compile_options(bx PUBLIC -pthread)
-        # target_compile_options(bimg_decode PUBLIC -pthread)
-        # target_compile_options(bimg_encode PUBLIC -pthread)
-        # target_compile_options(freetype PUBLIC -pthread)
-        # target_compile_options(visage PUBLIC -pthread)
-        # target_compile_options(VisageApp PUBLIC -pthread)
-        # target_compile_options(VisageGraphics PUBLIC -pthread)
-        # target_compile_options(VisageUtils PUBLIC -pthread)
-        # target_compile_options(VisageUi PUBLIC -pthread)
-        # target_compile_options(VisageWidgets PUBLIC -pthread)
-        # target_compile_options(VisageWindowing PUBLIC -pthread)
-        # target_compile_options(chowdsp_slides PUBLIC -pthread)
-
         file(GLOB asset_files ${target_dir}/assets/*)
         set(preload_commands "")
         foreach(asset_file ${asset_files})
@@ -46,15 +38,14 @@ function(slides_app target target_dir)
 
         target_link_options(${target}
             PRIVATE
-            # -pthread
             --shell-file ${target_dir}/slides.html
             ${preload_commands}
             -sGL_ENABLE_GET_PROC_ADDRESS
             -sALLOW_MEMORY_GROWTH
+            -sASYNCIFY
             --bind
             "-sEXPORTED_FUNCTIONS=['_main', '_pasteCallback']"
             "-sEXPORTED_RUNTIME_METHODS=['ccall', 'cwrap', 'UTF8ToString']"
-            # "-sASSERTIONS"
         )
 
         set_target_properties(${target} PROPERTIES
@@ -62,5 +53,25 @@ function(slides_app target target_dir)
             OUTPUT_NAME "index"
             RUNTIME_OUTPUT_DIRECTORY "${target_dir}/web"
         )
+
+        add_custom_target(copy_js ALL
+            COMMENT "Copying JS to ${target_dir}/web/src"
+        )
+        add_custom_command(
+            TARGET copy_js
+            PRE_BUILD
+            COMMAND ${CMAKE_COMMAND} -E remove_directory "${target_dir}/web/src"
+            COMMENT "Deleting old JS folder: ${target_dir}/web/src"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${target_dir}/web/src"
+            COMMENT "Creating new JS folder: ${target_dir}/web/src"
+        )
+        foreach(js_source ${js_sources})
+            add_custom_command(
+                TARGET copy_js POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy "${js_source}" "${target_dir}/web/src"
+                COMMENT "Copying ${js_source} to ${target_dir}/web/src"
+            )
+        endforeach()
+        add_dependencies(${target} copy_js)
     endif ()
 endfunction()

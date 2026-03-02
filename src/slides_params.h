@@ -84,6 +84,7 @@ static File* gon_file (Gon_Ref gon)
 }
 
 struct Image_Atlas;
+struct JS_Engine;
 struct Default_Params
 {
     File* font {};
@@ -94,6 +95,7 @@ struct Default_Params
     visage::Frame* slideshow_frame {};
     ma_engine* audio_engine {};
     Image_Atlas* image_atlas {};
+    JS_Engine* js_engine {};
 
     GonObject header_params {};
     GonObject footer_params {};

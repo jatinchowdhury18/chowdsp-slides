@@ -7,9 +7,12 @@
 
 #include "slides_audio_player.h"
 #include "slides_bullets.h"
+#include "slides_equation.h"
 #include "slides_footer.h"
 #include "slides_image.h"
 #include "slides_text.h"
+
+#include "slides_js.h"
 
 namespace chowdsp::slides
 {
@@ -70,6 +73,13 @@ static std::vector<Content_Frame*> gon_content_array (Gon_Ref gon)
             content.push_back (new Image {
                 frame_params,
                 gon_image_params (g["params"]),
+            });
+        }
+        else if (type == "equation")
+        {
+            content.push_back (new Equation {
+                frame_params,
+                gon_equation_params (g["params"]),
             });
         }
         else
@@ -242,6 +252,7 @@ struct Slideshow : visage::Frame
 
     ma_engine audio_engine;
     Image_Atlas image_atlas { visage::ImageAtlas::DataType::RGBA8 };
+    JS_Engine js_engine {};
 
     // This doesn't work on the web!
     // Background_Task background_task {};
@@ -263,6 +274,7 @@ struct Slideshow : visage::Frame
     {
         init_audio_engine();
         params->image_atlas = &image_atlas;
+        params->js_engine = &js_engine;
         params->slideshow_frame = this;
 
         using namespace visage::dimension;

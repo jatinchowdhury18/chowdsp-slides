@@ -10,7 +10,7 @@ struct Bullet_List_Params
     visage::Color background_color { 0xff212529 };
     visage::Color text_color { 0xffffffff };
     visage::Dimension font_height { visage::Dimension::heightPercent (3.5) };
-    visage::Dimension padding { visage::Dimension::heightPercent (3.5) };
+    visage::Dimension padding { visage::Dimension::heightPercent (2.0) };
     visage::Dimension indent { 4_vw };
     bool animate = true;
 };
@@ -20,8 +20,8 @@ static Bullet_List_Params gon_bullet_list_params (Gon_Ref gon)
     return Bullet_List_Params {
         .background_color = gon["background_color"].UInt (0xff212529),
         .text_color = gon["text_color"].UInt (0xffffffff),
-        .font_height = gon_dim (gon["font_height"], visage::Dimension::heightPercent (3.0)),
-        .padding = gon_dim (gon["padding"], visage::Dimension::heightPercent (1.5)),
+        .font_height = gon_dim (gon["font_height"], visage::Dimension::heightPercent (3.5)),
+        .padding = gon_dim (gon["padding"], visage::Dimension::heightPercent (2.0)),
         .indent = gon_dim (gon["indent"], 4_vw),
         .animate = gon["animate"].Bool (true),
     };

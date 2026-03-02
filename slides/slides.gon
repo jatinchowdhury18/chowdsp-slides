@@ -89,6 +89,20 @@ slides = [
                     file_path = "assets/test.wav"
                 }
             },
+
+            {
+                type = "equation"
+
+                frame_params = {
+                    dims = ["51_vw", "40_vh", "47_vw", "25_vh"]
+                    animate = true
+                }
+
+                params = {
+                    equation = "F(k) = \\int_{-\\infty}^{\\infty} f(x)e^{-2\\pi i k x} \\, dx"
+                    padding = 4_vh
+                }
+            },
         ]
     },
 
