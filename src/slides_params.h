@@ -74,37 +74,41 @@ static auto set_bounds (Dims dims, visage::Frame& child, const visage::Frame& pa
                      compute_dim (dims[3], parent));
 }
 
-static File* gon_file (Gon_Ref gon)
+static File* gon_file (Gon_Ref gon, File_Allocator& file_alloc)
 {
     const auto file_path = gon.String ({});
     if (file_path.empty())
         return {};
 
-    return new File { file_path };
+    return file_alloc.allocate<File> (file_path);
 }
 
 struct Image_Atlas;
 struct JS_Engine;
+using Frame_Allocator = Lifetime_Allocator<visage::Frame>;
 struct Default_Params
 {
-    File* font {};
-    visage::Color background_color { 0xff33393f };
-    visage::Color text_color { 0xffffffff };
-    std::array<float, 2> aspect_ratio {};
-
-    visage::Frame* slideshow_frame {};
+    Frame_Allocator* frame_allocator {};
+    File_Allocator* file_allocator {};
     ma_engine* audio_engine {};
     Image_Atlas* image_atlas {};
     JS_Engine* js_engine {};
 
+    visage::Frame* slideshow_frame {};
     GonObject header_params {};
     GonObject footer_params {};
+
+    File* font {};
+    visage::Color background_color { 0xff33393f };
+    visage::Color text_color { 0xffffffff };
+    std::array<float, 2> aspect_ratio {};
 };
 
-static Default_Params gon_default_params (Gon_Ref gon)
+static Default_Params gon_default_params (Gon_Ref gon, File_Allocator& file_alloc)
 {
     Default_Params params {};
-    params.font = gon_file (gon["font"]);
+    params.file_allocator = &file_alloc;
+    params.font = gon_file (gon["font"], file_alloc);
     params.background_color = gon["background_color"].UInt (0xff33393f);
     params.text_color = gon["text_color"].UInt (0xffffffff);
     params.header_params = gon["header"];

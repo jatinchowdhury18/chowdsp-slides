@@ -7,6 +7,21 @@
 
 namespace chowdsp::slides
 {
+// @TODO: probably move this somewhere else...
+struct Audio_Engine : ma_engine
+{
+    Audio_Engine()
+    {
+        auto result = ma_engine_init (nullptr, this);
+        assert (result == MA_SUCCESS);
+    }
+
+    ~Audio_Engine()
+    {
+        ma_engine_uninit (this);
+    }
+};
+
 struct Audio_Player_Params
 {
     std::string file_path {};
@@ -69,8 +84,8 @@ struct Audio_Player : Content_Frame
 
     visage::EventTimer timer {};
 
-    Audio_Player (Content_Frame_Params frame_params, Audio_Player_Params params)
-        : Content_Frame { frame_params },
+    Audio_Player (const Default_Params& def_params, Content_Frame_Params frame_params, Audio_Player_Params params)
+        : Content_Frame { def_params, frame_params },
           player_params { params }
     {
         addChild (play_pause_button);
@@ -85,6 +100,19 @@ struct Audio_Player : Content_Frame
                 play_pause_button.setToggledAndNotify (false);
             redraw();
         };
+
+        if (player_params.label_color.alpha() == 0.0f)
+            player_params.label_color = default_params.text_color;
+
+        if (player_params.label.empty())
+        {
+            namespace fs = std::filesystem;
+            const auto file_path = fs::path { player_params.file_path.data() };
+            player_params.label = file_path.filename().string();
+        }
+
+        load_thumbnail();
+        load_audio_file();
     }
 
     void load_thumbnail()
@@ -134,23 +162,9 @@ struct Audio_Player : Content_Frame
         ma_decoder_uninit (&decoder);
     }
 
-    void set_default_params (Default_Params* default_params) override
+    void load_audio_file()
     {
-        Content_Frame::set_default_params (default_params);
-
-        if (player_params.label_color.alpha() == 0.0f)
-            player_params.label_color = default_params->text_color;
-
-        if (player_params.label.empty())
-        {
-            namespace fs = std::filesystem;
-            const auto file_path = fs::path { player_params.file_path.data() };
-            player_params.label = file_path.filename().string();
-        }
-
-        load_thumbnail();
-
-        auto result = ma_sound_init_from_file (frame_params.default_params->audio_engine,
+        auto result = ma_sound_init_from_file (default_params.audio_engine,
                                                player_params.file_path.data(),
                                                MA_SOUND_FLAG_NO_PITCH | MA_SOUND_FLAG_NO_SPATIALIZATION,
                                                NULL,
@@ -206,7 +220,7 @@ struct Audio_Player : Content_Frame
             canvas.setColor (visage::Color { player_params.label_color }
                                  .withAlpha (alpha));
             canvas.text (player_params.label,
-                         font (*frame_params.default_params, compute_dim (12_vh, *this)),
+                         font (default_params, compute_dim (12_vh, *this)),
                          visage::Font::kCenter,
                          compute_dim (0_vw, *this),
                          compute_dim (80_vh, *this),

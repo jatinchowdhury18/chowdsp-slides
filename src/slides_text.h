@@ -38,24 +38,24 @@ struct Slide_Text
     Dims dims {};
 };
 
-Slide_Text gon_slide_text (Gon_Ref gon)
+Slide_Text gon_slide_text (Gon_Ref gon, File_Allocator& file_alloc)
 {
     return Slide_Text {
         .text = gon["text"].String ({}),
         .size = gon_dim (gon["size"]),
         .justification = gon_justification (gon["justification"], visage::Font::kCenter),
         .color = gon["color"].UInt ({}),
-        .font = gon_file (gon["font"]),
+        .font = gon_file (gon["font"], file_alloc),
         .dims = gon_dims (gon["dims"]),
     };
 }
 
-std::vector<Slide_Text> gon_text_array (Gon_Ref gon)
+std::vector<Slide_Text> gon_text_array (Gon_Ref gon, File_Allocator& file_alloc)
 {
     std::vector<Slide_Text> res {};
     res.reserve (gon.size());
     for (const auto& g : gon)
-        res.push_back (gon_slide_text (g));
+        res.push_back (gon_slide_text (g, file_alloc));
     return res;
 }
 

@@ -4,6 +4,12 @@ set(CMAKE_CXX_STANDARD 20)
 
 project(chowdsp-slides VERSION 0.1.0)
 
+# Uncomment the next line to enable address sanitizer with Clang
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -g")
+
+# Uncomment measure build times with Clang
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftime-trace")
+
 add_subdirectory(visage)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 

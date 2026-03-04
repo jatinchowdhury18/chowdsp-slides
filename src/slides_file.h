@@ -9,12 +9,12 @@
 #if CHOWDSP_SLIDES_POSIX
 #include <sys/mman.h>
 #include <unistd.h>
-#define USE_MMAP 1
 #elif CHOWDSP_SLIDES_WINDOWS
 #include <Windows.h>
 #include <stdio.h>
-#define USE_MMAP 1 // @TODO no MMAP is not implemented!
 #endif
+
+#include "slides_allocator.h"
 
 namespace chowdsp::slides
 {
@@ -40,16 +40,9 @@ struct File
 
         size = sb.st_size;
 
-#if USE_MMAP
         data = static_cast<const unsigned char*> (mmap (NULL, size, PROT_READ, MAP_PRIVATE, fd, 0u));
         if (data == MAP_FAILED)
             assert (false);
-#else
-        auto* fdata = malloc (size);
-        const auto bytes_read = read (fd, fdata, size);
-        assert (bytes_read == size);
-        data = static_cast<const unsigned char*> (fdata);
-#endif
 
         close (fd);
 #elif CHOWDSP_SLIDES_WINDOWS
@@ -72,11 +65,7 @@ struct File
         if (data != nullptr)
         {
 #if CHOWDSP_SLIDES_POSIX
-#if USE_MMAP
             munmap (const_cast<unsigned char*> (data), size);
-#else
-            free (const_cast<unsigned char*> (data));
-#endif
 #elif CHOWDSP_SLIDES_WINDOWS
             UnmapViewOfFile (data);
 #endif
@@ -84,4 +73,6 @@ struct File
     }
 };
 #pragma clang diagnostic pop
+
+using File_Allocator = Lifetime_Allocator<File>;
 }

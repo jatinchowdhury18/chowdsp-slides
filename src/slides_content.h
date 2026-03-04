@@ -7,7 +7,6 @@ namespace chowdsp::slides
 struct Content_Frame_Params
 {
     Dims dims {};
-    Default_Params* default_params {};
     float animation_speed { 0.5f };
     bool animate = true;
 };
@@ -23,6 +22,7 @@ static Content_Frame_Params gon_content_frame_params (Gon_Ref gon)
 
 struct Content_Frame : visage::Frame
 {
+    const Default_Params& default_params;
     Content_Frame_Params frame_params {};
     size_t animation_steps {};
     size_t active_animation_step {};
@@ -32,9 +32,10 @@ struct Content_Frame : visage::Frame
         visage::Animation<float>::kLinear,
     };
 
-    Content_Frame() = default;
-    Content_Frame (Content_Frame_Params params)
-        : frame_params { params }
+    // Content_Frame() = default;
+    Content_Frame (const Default_Params& def_params, Content_Frame_Params params)
+        : default_params { def_params },
+          frame_params { params }
     {
         if (! frame_params.animate)
             animation.setAnimationTime (0);
@@ -42,11 +43,6 @@ struct Content_Frame : visage::Frame
             animation.setAnimationTime (visage::Animation<float>::kRegularTime / frame_params.animation_speed);
         animation.setTargetValue (1.0f);
         animation.target (! frame_params.animate);
-    }
-
-    virtual void set_default_params (Default_Params* default_params)
-    {
-        frame_params.default_params = default_params;
     }
 
     void show()

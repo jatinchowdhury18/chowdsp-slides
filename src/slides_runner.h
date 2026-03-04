@@ -89,7 +89,7 @@ void slides_runner (Run_Opts run_opts)
         {
             if (slides != nullptr)
             {
-                if (slides->params->aspect_ratio[0] > 0.0f)
+                if (slides->params.aspect_ratio[0] > 0.0f)
                 {
                     const auto bounds = fit_and_center (window.width(), window.height(), 16.0f, 9.0f);
                     slides->setBounds (bounds[0], bounds[1], bounds[2], bounds[3]);

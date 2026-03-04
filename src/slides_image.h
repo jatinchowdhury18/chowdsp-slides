@@ -47,9 +47,9 @@ static std::array<float, 2> get_aspect_ratio (const File* file)
     return {};
 }
 
-static Image_Params gon_image_params (Gon_Ref gon)
+static Image_Params gon_image_params (Gon_Ref gon, const Default_Params& default_params)
 {
-    const auto file = gon_file (gon["file_path"]);
+    const auto file = gon_file (gon["file_path"], *default_params.file_allocator);
     return Image_Params {
         .image_file = file,
         .aspect_ratio = get_aspect_ratio (file),
@@ -65,21 +65,11 @@ struct Image : Content_Frame
     Image_Params image_params;
     visage::ImageAtlas::PackedImage packed_image { {} };
 
-    Image (Content_Frame_Params frame_params, Image_Params params)
-        : Content_Frame { frame_params },
+    Image (const Default_Params& def_params, Content_Frame_Params frame_params, Image_Params params)
+        : Content_Frame { def_params, frame_params },
           image_params { params }
     {
-    }
-
-    ~Image() override
-    {
-        delete image_params.image_file;
-    }
-
-    void set_default_params (Default_Params* default_params) override
-    {
-        Content_Frame::set_default_params (default_params);
-        merge_params (image_params, *default_params);
+        merge_params (image_params, default_params);
     }
 
     void resized() override
@@ -111,8 +101,8 @@ struct Image : Content_Frame
                                   (int) image_data_size,
                                   static_cast<int> (std::round (w * dpiScale())),
                                   static_cast<int> (std::round (h * dpiScale())) };
-            const std::lock_guard lock { frame_params.default_params->image_atlas->mutex };
-            packed_image = frame_params.default_params->image_atlas->addImage (image);
+            const std::lock_guard lock { default_params.image_atlas->mutex };
+            packed_image = default_params.image_atlas->addImage (image);
         }
     }
 
@@ -128,7 +118,7 @@ struct Image : Content_Frame
             image_height -= caption_height;
             canvas.setColor (image_params.caption_color.withAlpha (alpha));
             canvas.text (image_params.caption,
-                         font (*frame_params.default_params, caption_height * 0.5f),
+                         font (default_params, caption_height * 0.5f),
                          visage::Font::kCenter,
                          compute_dim (0_vw, *this),
                          image_height,
@@ -149,7 +139,7 @@ struct Image : Content_Frame
                                          image_params.aspect_ratio[1]);
             }
 
-            if (frame_params.default_params->image_atlas->mutex.try_lock())
+            if (default_params.image_atlas->mutex.try_lock())
             {
                 canvas.addShape (
                     visage::ImageRefWrapper (
@@ -160,8 +150,8 @@ struct Image : Content_Frame
                         canvas.pixels (bounds[2]),
                         canvas.pixels (bounds[3]),
                         packed_image,
-                        frame_params.default_params->image_atlas));
-                frame_params.default_params->image_atlas->mutex.unlock();
+                        default_params.image_atlas));
+                default_params.image_atlas->mutex.unlock();
             }
             else
             {

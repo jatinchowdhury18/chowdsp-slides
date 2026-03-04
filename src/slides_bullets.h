@@ -87,10 +87,8 @@ struct Bullet_List : Content_Frame
     {
         Bullet_List* parent {};
         Bullet_Params bullet_params {};
-        Bullet (Bullet_Params ps, bool animate)
-            : Content_Frame { {
-                  .animate = animate,
-              } },
+        Bullet (const Default_Params& def_params, Bullet_Params ps, bool animate)
+            : Content_Frame { def_params, { .animate = animate } },
               bullet_params { ps }
         {
         }
@@ -114,9 +112,9 @@ struct Bullet_List : Content_Frame
             auto bullet_text = std::string { bullet_params.flags & BULLET_NO_BULLET ? "" : "- " };
             bullet_text += bullet_params.text;
             canvas.setColor (bullet_params.text_color.withAlpha (alpha));
-            const auto font_height = compute_dim (bullet_params.font_height, *frame_params.default_params->slideshow_frame);
+            const auto font_height = compute_dim (bullet_params.font_height, *default_params.slideshow_frame);
             auto* stored_text = canvas.getText (bullet_text,
-                                                font (*frame_params.default_params, font_height),
+                                                font (default_params, font_height),
                                                 bullet_params.justification);
             stored_text->setMultiLine (true);
             auto&& text_block = canvas.getTextBlock (stored_text, 0.0f, 0.0f, width(), height());
@@ -144,33 +142,32 @@ struct Bullet_List : Content_Frame
             canvas.addShape (std::move (text_block));
         }
     };
-    std::vector<Bullet*> bullets {};
+    std::span<Bullet*> bullets {};
 
-    Bullet_List (Content_Frame_Params frame_params,
+    Bullet_List (const Default_Params& def_params,
+                 Content_Frame_Params frame_params,
                  Bullet_List_Params this_list_params,
                  std::vector<Bullet_Params> bullet_params = {})
-        : Content_Frame { frame_params },
+        : Content_Frame { def_params, frame_params },
           bullet_list_params { this_list_params }
     {
         if (bullet_list_params.animate)
             animation_steps = bullet_params.size();
 
-        for (auto one_bullet_params : bullet_params)
+        const auto bullets_count = bullet_params.size();
+        bullets = default_params.frame_allocator->make_span<Bullet*> (bullets_count);
+        for (size_t idx = 0; idx < bullets_count; ++idx)
         {
-            if (one_bullet_params.text_color.alpha() == 0.0f)
-                one_bullet_params.text_color = bullet_list_params.text_color;
-            if (one_bullet_params.font_height.amount == 0.0f)
-                one_bullet_params.font_height = bullet_list_params.font_height;
-            auto& new_bullet = bullets.emplace_back (new Bullet { one_bullet_params, bullet_list_params.animate });
-            new_bullet->parent = this;
-            addChild (new_bullet);
+            if (bullet_params[idx].text_color.alpha() == 0.0f)
+                bullet_params[idx].text_color = bullet_list_params.text_color;
+            if (bullet_params[idx].font_height.amount == 0.0f)
+                bullet_params[idx].font_height = bullet_list_params.font_height;
+            bullets[idx] = default_params.frame_allocator->allocate<Bullet> (default_params,
+                                                                             bullet_params[idx],
+                                                                             bullet_list_params.animate);
+            bullets[idx]->parent = this;
+            addChild (bullets[idx]);
         }
-    }
-
-    ~Bullet_List() override
-    {
-        for (auto* bullet : bullets)
-            delete bullet;
     }
 
     void draw (visage::Canvas& canvas) override
@@ -179,25 +176,23 @@ struct Bullet_List : Content_Frame
 
         canvas.setColor (visage::Color { bullet_list_params.background_color }
                              .withAlpha (fade_alpha()));
-        const auto pad = compute_dim (bullet_list_params.padding, *frame_params.default_params->slideshow_frame);
+        const auto pad = compute_dim (bullet_list_params.padding, *default_params.slideshow_frame);
         canvas.roundedRectangle (0, 0, width(), height(), pad);
     }
 
     void resized() override
     {
         const auto indent_x = compute_dim (bullet_list_params.indent, *this);
-        const auto pad_x = compute_dim (bullet_list_params.padding, *frame_params.default_params->slideshow_frame);
+        const auto pad_x = compute_dim (bullet_list_params.padding, *default_params.slideshow_frame);
         const auto pad_y = pad_x;
         auto y = pad_y;
         for (auto* bullet : bullets)
         {
-            bullet->frame_params.default_params = frame_params.default_params;
-
             const auto x = indent_x * bullet->bullet_params.indent + pad_x;
-            const auto font_height = compute_dim (bullet->bullet_params.font_height, *frame_params.default_params->slideshow_frame);
+            const auto font_height = compute_dim (bullet->bullet_params.font_height, *default_params.slideshow_frame);
             const auto height = font_height + pad_y;
             bullet->setBounds (x, y, width() - 2 * pad_x, height);
-            y += height + compute_dim (bullet->bullet_params.y_pad, *frame_params.default_params->slideshow_frame);
+            y += height + compute_dim (bullet->bullet_params.y_pad, *default_params.slideshow_frame);
         }
     }
 

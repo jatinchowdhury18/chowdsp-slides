@@ -41,23 +41,18 @@ struct Equation : Content_Frame
         return xml.substr (first_close, last_open - first_close + 6);
     }
 
-    Equation (Content_Frame_Params frame_params, Equation_Params params)
-        : Content_Frame { frame_params },
+    Equation (const Default_Params& def_params, Content_Frame_Params frame_params, Equation_Params params)
+        : Content_Frame { def_params, frame_params },
           params { params }
     {
-    }
-
-    void set_default_params (Default_Params* default_params) override
-    {
-        Content_Frame::set_default_params (default_params);
-        auto svg_string = default_params->js_engine->render_tex (params.equation_string);
+        auto svg_string = default_params.js_engine->render_tex (params.equation_string);
         svg_string = trim_svg_xml (svg_string);
         svg = visage::Svg { (const unsigned char*) svg_string.data(), (int) svg_string.size() };
     }
 
     void resized() override
     {
-        const auto pad = compute_dim (params.padding, *frame_params.default_params->slideshow_frame);
+        const auto pad = compute_dim (params.padding, *default_params.slideshow_frame);
         const auto w = std::round (width() - 2.0f * pad);
         const auto h = std::round (height() - 2.0f * pad);
         svg.setDimensions ((int) w, (int) h, 1.0f);
@@ -78,7 +73,7 @@ struct Equation : Content_Frame
         // canvas.segment (0_vw, 50_vh, 100_vw, 50_vh, 1.0f, false);
 
         canvas.setColor (params.equation_color.withAlpha (alpha));
-        const auto pad = compute_dim (params.padding, *frame_params.default_params->slideshow_frame);
+        const auto pad = compute_dim (params.padding, *default_params.slideshow_frame);
         canvas.svg (svg, pad * 0.5f, pad * 0.5f);
     }
 };
