@@ -68,6 +68,7 @@ static Bullet_Params gon_bullet_params (Gon_Ref gon)
     return params;
 }
 
+// @TODOL vector
 static std::vector<Bullet_Params> gon_bullet_params_array (Gon_Ref gon)
 {
     std::vector<Bullet_Params> res {};

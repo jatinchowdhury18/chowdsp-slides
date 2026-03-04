@@ -50,6 +50,7 @@ Slide_Text gon_slide_text (Gon_Ref gon, File_Allocator& file_alloc)
     };
 }
 
+// @TODO: vector
 std::vector<Slide_Text> gon_text_array (Gon_Ref gon, File_Allocator& file_alloc)
 {
     std::vector<Slide_Text> res {};

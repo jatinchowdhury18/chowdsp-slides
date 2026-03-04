@@ -19,6 +19,7 @@ function(slides_app target target_dir)
         )
     elseif (APPLE)
         set(PROGRAM_NAME ${target})
+        target_link_libraries(${target} PUBLIC "-framework WebKit")
         configure_file(${chowdsp_slides_dir}/cmake/Info.plist.in ${CMAKE_CURRENT_BINARY_DIR}/chowdsp-slides.plist)
         set_target_properties(${target} PROPERTIES
             MACOSX_BUNDLE TRUE

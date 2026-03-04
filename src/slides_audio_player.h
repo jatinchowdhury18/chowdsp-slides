@@ -115,6 +115,11 @@ struct Audio_Player : Content_Frame
         load_audio_file();
     }
 
+    ~Audio_Player() override
+    {
+        ma_sound_uninit (&sound);
+    }
+
     void load_thumbnail()
     {
         auto decoder_config = ma_decoder_config_init (ma_format_f32, 0, 0);
@@ -189,11 +194,6 @@ struct Audio_Player : Content_Frame
                 redraw();
             }
         };
-    }
-
-    ~Audio_Player() override
-    {
-        ma_sound_uninit (&sound);
     }
 
     void resized() override

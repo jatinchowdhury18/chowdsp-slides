@@ -6,11 +6,11 @@
 
 namespace chowdsp::slides
 {
-static Slideshow* make_slides()
+static Slideshow* make_slides (visage::Window* window)
 {
     try
     {
-        return new Slideshow { GonObject::Load ("slides.gon") };
+        return new Slideshow { GonObject::Load ("slides.gon"), window };
     }
     catch (const std::exception& e)
     {
@@ -64,6 +64,7 @@ void slides_runner (Run_Opts run_opts)
         canvas.setColor (0xff000000);
         canvas.fill (0, 0, canvas.width(), canvas.height());
     };
+    window.showMaximized();
 
     Slideshow* slides {};
     auto load_slides = [&window, &run_opts, &slides]()
@@ -76,7 +77,7 @@ void slides_runner (Run_Opts run_opts)
             slides = nullptr;
         }
 
-        slides = make_slides();
+        slides = make_slides (window.get_window());
         if (slides == nullptr)
             return;
 
@@ -84,7 +85,6 @@ void slides_runner (Run_Opts run_opts)
                            run_opts.hot_reload_state.animation_step);
         window.addChild (slides);
 
-        // @TODO: fixed aspect ratio here?
         window.onResize() = [&window, slides]
         {
             if (slides != nullptr)
@@ -124,7 +124,7 @@ void slides_runner (Run_Opts run_opts)
         delete slides;
         return true;
     };
-    window.showMaximized();
+    // window.showMaximized();
     window.runEventLoop();
 }
 } // namespace chowdsp::slides

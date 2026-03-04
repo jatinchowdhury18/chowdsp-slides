@@ -32,11 +32,12 @@ struct Content_Frame : visage::Frame
         visage::Animation<float>::kLinear,
     };
 
-    // Content_Frame() = default;
     Content_Frame (const Default_Params& def_params, Content_Frame_Params params)
         : default_params { def_params },
           frame_params { params }
     {
+        setVisible (false);
+
         if (! frame_params.animate)
             animation.setAnimationTime (0);
         else

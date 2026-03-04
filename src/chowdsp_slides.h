@@ -13,8 +13,7 @@
 #include "slides_footer.h"
 #include "slides_image.h"
 #include "slides_text.h"
-
-#include "slides_js.h"
+#include "slides_webview.h"
 
 namespace chowdsp::slides
 {
@@ -43,50 +42,60 @@ struct Slide_Params
 
     Slide_Text title {};
     std::vector<Slide_Text> text {};
-    std::vector<Content_Frame*> content {};
+    std::span<Content_Frame*> content {};
 };
 
-static std::vector<Content_Frame*> gon_content_array (Gon_Ref gon, const Default_Params& params)
+static std::span<Content_Frame*> gon_content_array (Gon_Ref gon, const Default_Params& params)
 {
-    std::vector<Content_Frame*> content {};
-    content.reserve (gon.size());
-
+    auto content = params.frame_allocator->make_span<Content_Frame*> (gon.size());
+    std::fill (content.begin(), content.end(), nullptr);
+    size_t idx = 0;
     for (const auto& g : gon)
     {
         const auto type = g["type"].String ({});
         const auto frame_params = gon_content_frame_params (g["frame_params"]);
         if (type == "bullet_list")
         {
-            content.push_back (
-                params.frame_allocator->allocate<Bullet_List> (
-                    params,
-                    frame_params,
-                    gon_bullet_list_params (g["params"]),
-                    gon_bullet_params_array (g["bullets"])));
+            content[idx++] = params.frame_allocator->allocate<Bullet_List> (
+                params,
+                frame_params,
+                gon_bullet_list_params (g["params"]),
+                gon_bullet_params_array (g["bullets"]));
         }
         else if (type == "audio_player")
         {
-            content.push_back (
-                params.frame_allocator->allocate<Audio_Player> (
-                    params,
-                    frame_params,
-                    gon_audio_player_params (g["params"])));
+            content[idx++] = params.frame_allocator->allocate<Audio_Player> (
+                params,
+                frame_params,
+                gon_audio_player_params (g["params"]));
         }
         else if (type == "image")
         {
-            content.push_back (
-                params.frame_allocator->allocate<Image> (
-                    params,
-                    frame_params,
-                    gon_image_params (g["params"], params)));
+            content[idx++] = params.frame_allocator->allocate<Image> (
+                params,
+                frame_params,
+                gon_image_params (g["params"], params));
         }
         else if (type == "equation")
         {
-            content.push_back (
-                params.frame_allocator->allocate<Equation> (
-                    params,
-                    frame_params,
-                    gon_equation_params (g["params"])));
+            content[idx++] = params.frame_allocator->allocate<Equation> (
+                params,
+                frame_params,
+                gon_equation_params (g["params"]));
+        }
+        else if (type == "web")
+        {
+            content[idx++] = params.frame_allocator->allocate<Web_View> (
+                params,
+                frame_params,
+                gon_web_view_params (g["params"]));
+        }
+        else if (type == "web_img")
+        {
+            content[idx++] = params.frame_allocator->allocate<Web_View> (
+                params,
+                frame_params,
+                gon_web_img_params (g["params"]));
         }
         else
         {
@@ -95,7 +104,7 @@ static std::vector<Content_Frame*> gon_content_array (Gon_Ref gon, const Default
         }
     }
 
-    return content;
+    return content.subspan (0, idx);
 }
 
 static void merge_params (Slide_Params& slide_params, const Default_Params& default_params)
@@ -128,7 +137,7 @@ struct Slide : visage::Frame
     Default_Params* default_params {};
     size_t animation_frames {};
     size_t active_animation_frame {};
-    std::vector<Content_Frame*> frames_to_animate {};
+    std::vector<Content_Frame*> frames_to_animate {}; // @TODO: vector
 
     Slide (Slide_Params slide_params) : params { slide_params }
     {
@@ -177,6 +186,12 @@ struct Slide : visage::Frame
         return true;
     }
 
+    void visibilityChanged() override
+    {
+        for (auto* content_frame : params.content)
+            content_frame->setVisible (isVisible());
+    }
+
     void resized() override
     {
         for (auto* content_frame : params.content)
@@ -223,8 +238,7 @@ struct Slide : visage::Frame
 
 static std::span<Slide*> gon_slides (Gon_Ref gon, const Default_Params& params)
 {
-    const auto slides_count = gon.size();
-    auto slides = params.frame_allocator->make_span<Slide*> (slides_count);
+    auto slides = params.frame_allocator->make_span<Slide*> (gon.size());
     size_t idx = 0;
     for (const auto& g : gon)
         slides[idx++] = params.frame_allocator->allocate<Slide> (gon_slide_params (g, params));
@@ -250,16 +264,19 @@ struct Slideshow : visage::Frame
     Header_Footer* header {};
     Header_Footer* footer {};
 
+    // Web_View* web_view {};
+
     // This doesn't work on the web!
     // Background_Task background_task {};
 
-    explicit Slideshow (Gon_Ref gon)
+    Slideshow (Gon_Ref gon, visage::Window* window)
     {
         params = gon_default_params (gon["params"], file_allocator);
         params.frame_allocator = &frame_allocator;
         params.audio_engine = &audio_engine;
         params.image_atlas = &image_atlas;
         params.js_engine = &js_engine;
+        params.window = window;
         params.slideshow_frame = this;
 
         slides = gon_slides (gon["slides"], params);
@@ -297,6 +314,12 @@ struct Slideshow : visage::Frame
             active_slide = 0;
             slides[active_slide]->setVisible (true);
         }
+
+        // web_view = frame_allocator.allocate<Web_View> (params.window);
+        // addChild (web_view);
+        // web_view->layout().setMarginLeft (5_vw);
+        // web_view->layout().setMarginTop (2_vh);
+        // web_view->layout().setDimensions (50_vw, slides_height);
 
         slide_metadata.slideshow_title = gon["title"].String ("");
         slide_metadata.slideshow_author = gon["author"].String ("");

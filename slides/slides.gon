@@ -43,7 +43,7 @@ slides = [
                 type = "bullet_list"
 
                 frame_params = {
-                    dims = ["2_vw", "10_vh", "47_vw", "88_vh"]
+                    dims = ["2_vw", "10_vh", "47_vw", "90_vh"]
                 }
 
                 bullets = [
@@ -128,6 +128,61 @@ slides = [
                     link_url = "https://www.youtube.com/watch?v=vLMrenP_nFc"
                 }
             },
+        ]
+    },
+
+    {
+        title = {
+            text = "Web View Slide"
+            size = 8_vh
+            justification = "Left"
+        }
+
+        content = [
+            {
+                type = "web"
+
+                frame_params = {
+                    dims = ["2_vw", "10_vh", "96_vw", "90_vh"]
+                }
+
+                params = {
+                    url = "https://compiler-explorer.com"
+                }
+            }
+        ]
+    },
+
+    {
+        title = {
+            text = "More Web Stuff"
+            size = 8_vh
+            justification = "Left"
+        }
+
+        content = [
+            {
+                type = "web"
+
+                frame_params = {
+                    dims = ["2_vw", "10_vh", "47_vw", "90_vh"]
+                }
+
+                params = {
+                    html = "<html><body style=\"font-family:sans-serif;color:white\"><h1>Hello from embed!</h1><p>This HTML is rendered inside an iframe.</p></body></html>"
+                }
+            },
+            {
+                type = "web_img"
+
+                frame_params = {
+                    dims = ["51_vw", "10_vh", "47_vw", "90_vh"]
+                }
+
+                params = {
+                    url = "assets/MJ-giphy.gif"
+                }
+            }
         ]
     },
 ]

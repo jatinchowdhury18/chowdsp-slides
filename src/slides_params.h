@@ -94,6 +94,7 @@ struct Default_Params
     Image_Atlas* image_atlas {};
     JS_Engine* js_engine {};
 
+    visage::Window* window {};
     visage::Frame* slideshow_frame {};
     GonObject header_params {};
     GonObject footer_params {};
