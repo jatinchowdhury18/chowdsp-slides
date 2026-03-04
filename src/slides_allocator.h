@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <span>
+#include <vector>
 
 #if CHOWDSP_SLIDES_WINDOWS
 #include <Windows.h>
@@ -112,6 +113,9 @@ struct Allocator
 template <typename T>
 struct Lifetime_Allocator : Allocator
 {
+    // TODO: using a vector here is annoying
+    // We don't care about pointer stability, so realloc is okay
+    // Or we could do more of a "growable list" kind of thing?
     std::vector<T*> lifetime_list {};
 
     Lifetime_Allocator()

@@ -91,7 +91,7 @@ static std::vector<Content_Frame*> gon_content_array (Gon_Ref gon, const Default
         else
         {
             // @TODO: handle "custom" content?
-            assert (false);
+            // assert (false);
         }
     }
 
@@ -233,12 +233,12 @@ static std::span<Slide*> gon_slides (Gon_Ref gon, const Default_Params& params)
 
 struct Slideshow : visage::Frame
 {
-    Frame_Allocator frame_allocator {};
-    File_Allocator file_allocator {};
-
     Audio_Engine audio_engine {};
     Image_Atlas image_atlas { visage::ImageAtlas::DataType::RGBA8 };
     JS_Engine js_engine {};
+
+    Frame_Allocator frame_allocator {};
+    File_Allocator file_allocator {};
 
     Default_Params params {};
     std::span<Slide*> slides {};
