@@ -21,10 +21,10 @@ struct Image_Params
     File* image_file {};
     std::array<float, 2> aspect_ratio {};
 
-    std::string caption {};
-    visage::Dimension caption_dim { 12_vh };
+    std::string_view caption {};
+    Dimension caption_dim { height_percent (12) };
     visage::Color caption_color { 0xffffffff };
-    std::string link_url {};
+    std::string_view link_url {};
 };
 
 static void merge_params (Image_Params& image, const Default_Params& params)
@@ -53,10 +53,10 @@ static Image_Params gon_image_params (Gon_Ref gon, const Default_Params& default
     return Image_Params {
         .image_file = file,
         .aspect_ratio = get_aspect_ratio (file),
-        .caption = gon["caption"].String ({}),
-        .caption_dim = gon_dim (gon["caption_dim"], 12_vh),
+        .caption = default_params.frame_allocator->copy_string (gon["caption"].StringView ({})),
+        .caption_dim = gon_dim (gon["caption_dim"], height_percent (12)),
         .caption_color = gon["caption_color"].Int ({}),
-        .link_url = gon["link_url"].String ({}),
+        .link_url = default_params.frame_allocator->copy_string (gon["link_url"].StringView ({})),
     };
 }
 
@@ -117,12 +117,12 @@ struct Image : Content_Frame
             const auto caption_height = compute_dim (image_params.caption_dim, *this);
             image_height -= caption_height;
             canvas.setColor (image_params.caption_color.withAlpha (alpha));
-            canvas.text (image_params.caption,
+            canvas.text (std::string { image_params.caption },
                          font (default_params, caption_height * 0.5f),
                          visage::Font::kCenter,
-                         compute_dim (0_vw, *this),
+                         0.0f,
                          image_height,
-                         compute_dim (100_vw, *this),
+                         width(),
                          caption_height);
         }
 
@@ -206,7 +206,7 @@ struct Image : Content_Frame
     void mouseDown (const visage::MouseEvent& e) override
     {
         if (can_click_url (e))
-            launch_url (image_params.link_url);
+            launch_url (image_params.link_url, *default_params.frame_allocator);
     }
 };
 } // namespace chowdsp::slides

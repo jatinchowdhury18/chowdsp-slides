@@ -30,7 +30,7 @@ static Header_Footer_Style gon_footer_style (Gon_Ref gon)
 struct Header_Footer_Params
 {
     Header_Footer_Style style {};
-    visage::Dimension height {};
+    Dimension height {};
     visage::Color background_color {};
     visage::Color text_color {};
     visage::Color accent_color { 0xffaaff88 };
@@ -85,6 +85,8 @@ struct Header_Footer : visage::Frame
 
     void draw (visage::Canvas& canvas) override
     {
+        using namespace visage::dimension;
+
         if (params.background_color.alpha() == 0.0f)
             canvas.setColor (current_slide->slide_color);
         else
@@ -95,7 +97,7 @@ struct Header_Footer : visage::Frame
             || params.style == Header_Footer_Style::PROGRESS_WITH_NUMBER)
         {
             canvas.setColor (params.text_color);
-            const auto text_height = compute_dim (50_vh, *this);
+            const auto text_height = 0.5f * height();
             canvas.text (std::to_string (current_slide->slide_idx),
                          visage::Font { text_height,
                                         default_params.font->data,
@@ -109,7 +111,7 @@ struct Header_Footer : visage::Frame
         if (params.style == Header_Footer_Style::BEAMER)
         {
             canvas.setColor (params.text_color);
-            const auto text_height = compute_dim (50_vh, *this);
+            const auto text_height = 0.5f * height();
             canvas.text (current_slide->slideshow_title + "  |  " + current_slide->slideshow_author,
                          visage::Font { text_height,
                                         default_params.font->data,

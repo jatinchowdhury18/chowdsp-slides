@@ -4,7 +4,6 @@
 #include <charconv>
 
 #include <visage/app.h>
-using namespace visage::dimension;
 
 #define MINIAUDIO_IMPLEMENTATION
 #include "third_party/miniaudio.h"
@@ -18,26 +17,64 @@ namespace chowdsp::slides
 {
 using Gon_Ref = const GonObject&;
 
-using Dims = std::array<visage::Dimension, 4>;
-static visage::Dimension string_to_dim (std::string dim_str, visage::Dimension default_dim)
+struct Dimension
+{
+    enum Type
+    {
+        NONE,
+        WIDTH,
+        HEIGHT,
+    };
+    float amount {};
+    Type type { NONE };
+};
+using Dims = std::array<Dimension, 4>;
+
+template <typename T>
+static Dimension width_percent (T percent)
+{
+    return {
+        .amount = static_cast<float> (percent) * 0.01f,
+        .type = Dimension::WIDTH,
+    };
+}
+
+template <typename T>
+static Dimension height_percent (T percent)
+{
+    return {
+        .amount = static_cast<float> (percent) * 0.01f,
+        .type = Dimension::HEIGHT,
+    };
+}
+
+static visage::Dimension to_visage (Dimension& dim)
+{
+    if (dim.type == Dimension::WIDTH)
+        return visage::Dimension::widthPercent (dim.amount * 100.0f);
+    if (dim.type == Dimension::HEIGHT)
+        return visage::Dimension::heightPercent (dim.amount * 100.0f);
+    return {};
+}
+
+static Dimension string_to_dim (std::string_view dim_str, Dimension default_dim)
 {
     if (dim_str.size() < 4)
         return default_dim;
 
     const auto suffix = dim_str.substr (dim_str.size() - 3);
-    const auto value = std::stod (dim_str);
+    const auto value = std::strtod (dim_str.data(), nullptr);
     if (suffix == "_vw")
-        return visage::Dimension::widthPercent (value);
-    else if (suffix == "_vh")
-        return visage::Dimension::heightPercent (value);
+        return width_percent (value);
+    if (suffix == "_vh")
+        return height_percent (value);
 
     return default_dim;
 }
 
-static visage::Dimension gon_dim (Gon_Ref gon,
-                                  visage::Dimension _default = {})
+static Dimension gon_dim (Gon_Ref gon, Dimension _default = {})
 {
-    return string_to_dim (gon.String ({}), _default);
+    return string_to_dim (gon.StringView ({}), _default);
 }
 
 static Dims gon_dims (Gon_Ref gon, Dims _default = {})
@@ -47,14 +84,16 @@ static Dims gon_dims (Gon_Ref gon, Dims _default = {})
 
     Dims dims {};
     for (size_t i = 0; i < 4; ++i)
-        dims[i] = string_to_dim (gon[i].String ({}), _default[i]);
+        dims[i] = string_to_dim (gon[i].StringView ({}), _default[i]);
 
     return dims;
 }
 
-static auto compute_dim (visage::Dimension dim, const visage::Frame& parent)
+static auto compute_dim (Dimension dim, const visage::Frame& parent)
 {
-    return dim.compute (parent.dpiScale(), parent.width(), parent.height());
+    if (dim.type == Dimension::NONE)
+        return 0.0f;
+    return dim.amount * (dim.type == Dimension::WIDTH ? parent.width() : parent.height());
 }
 
 static auto get_coords (Dims dims, const visage::Frame& parent)
@@ -76,7 +115,7 @@ static auto set_bounds (Dims dims, visage::Frame& child, const visage::Frame& pa
 
 static File* gon_file (Gon_Ref gon, File_Allocator& file_alloc)
 {
-    const auto file_path = gon.String ({});
+    const auto file_path = gon.StringView ({});
     if (file_path.empty())
         return {};
 

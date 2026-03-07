@@ -9,9 +9,9 @@ struct Bullet_List_Params
 {
     visage::Color background_color { 0xff212529 };
     visage::Color text_color { 0xffffffff };
-    visage::Dimension font_height { visage::Dimension::heightPercent (3.5) };
-    visage::Dimension padding { visage::Dimension::heightPercent (2.0) };
-    visage::Dimension indent { 4_vw };
+    Dimension font_height { height_percent (3.5) };
+    Dimension padding { height_percent (2.0) };
+    Dimension indent { width_percent (4) };
     bool animate = true;
 };
 
@@ -20,9 +20,9 @@ static Bullet_List_Params gon_bullet_list_params (Gon_Ref gon)
     return Bullet_List_Params {
         .background_color = gon["background_color"].UInt (0xff212529),
         .text_color = gon["text_color"].UInt (0xffffffff),
-        .font_height = gon_dim (gon["font_height"], visage::Dimension::heightPercent (3.5)),
-        .padding = gon_dim (gon["padding"], visage::Dimension::heightPercent (2.0)),
-        .indent = gon_dim (gon["indent"], 4_vw),
+        .font_height = gon_dim (gon["font_height"], height_percent (3.5)),
+        .padding = gon_dim (gon["padding"], height_percent (2.0)),
+        .indent = gon_dim (gon["indent"], width_percent (4)),
         .animate = gon["animate"].Bool (true),
     };
 }
@@ -35,24 +35,24 @@ enum Bullet_Flags : uint8_t
 
 struct Bullet_Params
 {
-    std::string text {};
+    std::string_view text {};
     int indent = 0;
     visage::Color text_color {};
-    visage::Dimension font_height {};
+    Dimension font_height {};
     visage::Font::Justification justification { visage::Font::kTopLeft };
-    visage::Dimension y_pad { 0_vh };
+    Dimension y_pad { height_percent (0) };
     uint8_t flags {};
 };
 
-static Bullet_Params gon_bullet_params (Gon_Ref gon)
+static Bullet_Params gon_bullet_params (Gon_Ref gon, Allocator& allocator)
 {
     Bullet_Params params {
-        .text = gon["text"].String ({}),
+        .text = allocator.copy_string (gon["text"].StringView ({})),
         .indent = gon["indent"].Int ({}),
         .text_color = gon["text_color"].UInt ({}),
         .font_height = gon_dim (gon["font_height"]),
         .justification = gon_justification (gon["justification"], visage::Font::kTopLeft),
-        .y_pad = gon_dim (gon["y_pad"], 0_vh),
+        .y_pad = gon_dim (gon["y_pad"], height_percent (0)),
     };
 
     const auto flags = gon["flags"];
@@ -68,16 +68,13 @@ static Bullet_Params gon_bullet_params (Gon_Ref gon)
     return params;
 }
 
-// @TODOL vector
-static std::vector<Bullet_Params> gon_bullet_params_array (Gon_Ref gon)
+static std::span<Bullet_Params> gon_bullet_params_array (Gon_Ref gon, Allocator& allocator)
 {
-    std::vector<Bullet_Params> res {};
-    res.reserve (gon.size());
-
+    auto params = allocator.make_span<Bullet_Params> (gon.size());
+    size_t idx = 0;
     for (const auto& g : gon)
-        res.push_back (gon_bullet_params (g));
-
-    return res;
+        params[idx++] = gon_bullet_params (g, allocator);
+    return params;
 }
 
 struct Bullet_List : Content_Frame
@@ -129,7 +126,7 @@ struct Bullet_List : Content_Frame
                 const auto line_width_padded = line_width * 1.15f * alpha;
                 const auto line_x_padded = line_x - (line_width_padded - line_width) * 0.5f;
 
-                const auto underline_height = compute_dim (4_vh, *this);
+                const auto underline_height = 0.04f * height();
                 const auto text_y_pad = (height() - font_height) * 0.5f;
                 const auto text_bottom = text_y_pad + font_height;
                 const auto line_y = std::min (text_bottom + 2 * underline_height, height() - underline_height);
@@ -148,7 +145,7 @@ struct Bullet_List : Content_Frame
     Bullet_List (const Default_Params& def_params,
                  Content_Frame_Params frame_params,
                  Bullet_List_Params this_list_params,
-                 std::vector<Bullet_Params> bullet_params = {})
+                 std::span<Bullet_Params> bullet_params = {})
         : Content_Frame { def_params, frame_params },
           bullet_list_params { this_list_params }
     {

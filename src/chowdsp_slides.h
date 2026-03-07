@@ -41,7 +41,7 @@ struct Slide_Params
     Slide_Style style { Content };
 
     Slide_Text title {};
-    std::vector<Slide_Text> text {};
+    std::span<Slide_Text> text {};
     std::span<Content_Frame*> content {};
 };
 
@@ -60,14 +60,14 @@ static std::span<Content_Frame*> gon_content_array (Gon_Ref gon, const Default_P
                 params,
                 frame_params,
                 gon_bullet_list_params (g["params"]),
-                gon_bullet_params_array (g["bullets"]));
+                gon_bullet_params_array (g["bullets"], *params.frame_allocator));
         }
         else if (type == "audio_player")
         {
             content[idx++] = params.frame_allocator->allocate<Audio_Player> (
                 params,
                 frame_params,
-                gon_audio_player_params (g["params"]));
+                gon_audio_player_params (g["params"], *params.frame_allocator));
         }
         else if (type == "image")
         {
@@ -123,8 +123,8 @@ static Slide_Params gon_slide_params (Gon_Ref gon, const Default_Params& default
         .background_image = gon_file (gon["background_image"], *default_params.file_allocator),
         .background_color = gon["background_color"].UInt ({}),
         .style = gon_slide_style (gon["style"]),
-        .title = gon_slide_text (gon["title"], *default_params.file_allocator),
-        .text = gon_text_array (gon["text"], *default_params.file_allocator),
+        .title = gon_slide_text (gon["title"], default_params),
+        .text = gon_text_array (gon["text"], default_params),
         .content = gon_content_array (gon["content"], default_params),
     };
     merge_params (params, default_params);
@@ -134,13 +134,15 @@ static Slide_Params gon_slide_params (Gon_Ref gon, const Default_Params& default
 struct Slide : visage::Frame
 {
     Slide_Params params {};
-    Default_Params* default_params {};
     size_t animation_frames {};
     size_t active_animation_frame {};
-    std::vector<Content_Frame*> frames_to_animate {}; // @TODO: vector
+    std::span<Content_Frame*> frames_to_animate {};
 
-    Slide (Slide_Params slide_params) : params { slide_params }
+    Slide (const Default_Params& default_params, Slide_Params slide_params)
+        : params { slide_params }
     {
+        frames_to_animate = default_params.frame_allocator->make_span<Content_Frame*> (params.content.size());
+        size_t frame_to_animate_count {};
         for (auto* content_frame : params.content)
         {
             addChild (content_frame, ! content_frame->frame_params.animate);
@@ -148,9 +150,10 @@ struct Slide : visage::Frame
             if (content_frame->frame_params.animate || content_frame->animation_steps != 0)
             {
                 animation_frames++;
-                frames_to_animate.push_back (content_frame);
+                frames_to_animate[frame_to_animate_count++] = content_frame;
             }
         }
+        frames_to_animate = frames_to_animate.subspan (0, frame_to_animate_count);
     }
 
     bool previous_step()
@@ -216,13 +219,19 @@ struct Slide : visage::Frame
         if (params.style == Cover)
         {
             if (params.title.dims[2].amount == 0.0f)
-                params.title.dims = { 0_vw, 0_vh, 100_vw, 100_vh };
+                params.title.dims = { width_percent (0),
+                                      height_percent (0),
+                                      width_percent (100),
+                                      height_percent (100) };
             draw_text (params.title, canvas, *this);
         }
         else
         {
             if (params.title.dims[2].amount == 0.0f)
-                params.title.dims = { 2_vw, 0_vh, 96_vw, 10_vh };
+                params.title.dims = { width_percent (2),
+                                      height_percent (0),
+                                      width_percent (96),
+                                      height_percent (10) };
             draw_text (params.title, canvas, *this);
         }
 
@@ -241,7 +250,7 @@ static std::span<Slide*> gon_slides (Gon_Ref gon, const Default_Params& params)
     auto slides = params.frame_allocator->make_span<Slide*> (gon.size());
     size_t idx = 0;
     for (const auto& g : gon)
-        slides[idx++] = params.frame_allocator->allocate<Slide> (gon_slide_params (g, params));
+        slides[idx++] = params.frame_allocator->allocate<Slide> (params, gon_slide_params (g, params));
     return slides;
 }
 
@@ -263,8 +272,6 @@ struct Slideshow : visage::Frame
 
     Header_Footer* header {};
     Header_Footer* footer {};
-
-    // Web_View* web_view {};
 
     // This doesn't work on the web!
     // Background_Task background_task {};
@@ -289,18 +296,22 @@ struct Slideshow : visage::Frame
         {
             header = frame_allocator.allocate<Header_Footer> (params.header_params, params, &slide_metadata);
             addChild (header);
-            slides_y_margin += header->params.height;
-            slides_height -= header->params.height;
-            header->layout().setDimensions (100_vw, header->params.height);
+
+            const auto header_height_dim = to_visage (header->params.height);
+            slides_y_margin += header_height_dim;
+            slides_height -= header_height_dim;
+            header->layout().setDimensions (100_vw, header_height_dim);
         }
 
         if (params.footer_params.type != GonObject::FieldType::NULLGON)
         {
             footer = frame_allocator.allocate<Header_Footer> (params.footer_params, params, &slide_metadata);
             addChild (footer);
-            slides_height -= footer->params.height;
-            footer->layout().setMarginTop (100_vh - footer->params.height);
-            footer->layout().setDimensions (100_vw, footer->params.height);
+
+            const auto footer_height_dim = to_visage (footer->params.height);
+            slides_height -= footer_height_dim;
+            footer->layout().setMarginTop (100_vh - footer_height_dim);
+            footer->layout().setDimensions (100_vw, footer_height_dim);
         }
 
         for (auto* slide : slides)

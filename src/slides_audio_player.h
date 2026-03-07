@@ -24,19 +24,19 @@ struct Audio_Engine : ma_engine
 
 struct Audio_Player_Params
 {
-    std::string file_path {};
+    std::string_view file_path {};
     visage::Color background_color { 0xff181B1F };
     visage::Color label_color { 0xffffffff };
-    std::string label {};
+    std::string_view label {};
 };
 
-static Audio_Player_Params gon_audio_player_params (Gon_Ref gon)
+static Audio_Player_Params gon_audio_player_params (Gon_Ref gon, Allocator& allocator)
 {
     return Audio_Player_Params {
-        .file_path = gon["file_path"].String ({}),
+        .file_path = allocator.copy_string (gon["file_path"].StringView ({})),
         .background_color = gon["background_color"].UInt (0xff181B1F),
         .label_color = gon["label_color"].Int (0xffffffff),
-        .label = gon["label"].String ({}),
+        .label = allocator.copy_string (gon["label"].StringView ({})),
     };
 }
 
@@ -52,25 +52,27 @@ struct Audio_Player : Content_Frame
         void draw (visage::Canvas& canvas, float hover_amount) override
         {
             canvas.setColor (visage::Color { 0xffaaff88 }.withAlpha (0.5f + 0.5f * hover_amount));
+            const auto quarter_width = 0.25f * width();
+            const auto round_width = 0.05f * width();
             if (! toggled())
             {
                 canvas.roundedTriangle (
-                    compute_dim (25_vw, *this),
-                    compute_dim (25_vw, *this),
-                    compute_dim (75_vw, *this),
-                    compute_dim (50_vw, *this),
-                    compute_dim (25_vw, *this),
-                    compute_dim (75_vw, *this),
-                    compute_dim (5_vw, *this));
+                    quarter_width,
+                    quarter_width,
+                    3 * quarter_width,
+                    2 * quarter_width,
+                    quarter_width,
+                    3 * quarter_width,
+                    round_width);
             }
             else
             {
                 canvas.roundedRectangle (
-                    compute_dim (25_vw, *this),
-                    compute_dim (25_vw, *this),
-                    compute_dim (50_vw, *this),
-                    compute_dim (50_vw, *this),
-                    compute_dim (5_vw, *this));
+                    quarter_width,
+                    quarter_width,
+                    2 * quarter_width,
+                    2 * quarter_width,
+                    round_width);
             }
         }
     } play_pause_button {};
@@ -106,9 +108,9 @@ struct Audio_Player : Content_Frame
 
         if (player_params.label.empty())
         {
-            namespace fs = std::filesystem;
-            const auto file_path = fs::path { player_params.file_path.data() };
-            player_params.label = file_path.filename().string();
+            // use the file name as the label
+            const auto last_slash_pos = player_params.file_path.find_last_of ("/\\");
+            player_params.label = player_params.file_path.substr (last_slash_pos + 1);
         }
 
         load_thumbnail();
@@ -198,7 +200,10 @@ struct Audio_Player : Content_Frame
 
     void resized() override
     {
-        set_bounds ({ 0_vw, 80_vh, 20_vh, 20_vh }, play_pause_button, *this);
+        play_pause_button.setBounds (0.0f,
+                                     0.8f * height(),
+                                     0.2f * height(),
+                                     0.2f * height());
     }
 
     void draw (visage::Canvas& canvas) override
@@ -219,13 +224,13 @@ struct Audio_Player : Content_Frame
         {
             canvas.setColor (visage::Color { player_params.label_color }
                                  .withAlpha (alpha));
-            canvas.text (player_params.label,
-                         font (default_params, compute_dim (12_vh, *this)),
+            canvas.text (std::string { player_params.label },
+                         font (default_params, 0.12f * height()),
                          visage::Font::kCenter,
-                         compute_dim (0_vw, *this),
-                         compute_dim (80_vh, *this),
-                         compute_dim (100_vw, *this),
-                         compute_dim (20_vh, *this));
+                         0.0f,
+                         0.8f * height(),
+                         width(),
+                         0.2f * height());
         }
 
         // thumbnail
@@ -235,21 +240,21 @@ struct Audio_Player : Content_Frame
         const auto thumbs_progress = static_cast<size_t> ((float) thumbs_count * cursor / length);
         const auto thumbs_progress_frac = ((float) thumbs_count * cursor / length) - (float) thumbs_progress;
 
-        const auto pad = compute_dim (4_vw, *this);
-        const auto height = compute_dim (72_vh, *this);
+        const auto pad = 0.04f * width();
+        const auto h = 0.72f * height();
         const auto spacing = width() * 0.005f;
         const auto thumb_width = ((width() - 2.0f * pad) / (float) thumbs_count) - spacing;
         auto x = pad;
-        const auto y_off = has_label ? compute_dim (6_vh, *this) : 0.0f;
+        const auto y_off = has_label ? (0.06f * height()) : 0.0f;
         for (size_t thumb_idx = 0; thumb_idx < thumbs_count; ++thumb_idx)
         {
             canvas.setColor (visage::Color { thumb_idx >= thumbs_progress ? 0xff4c4f52 : 0xff9978ee }
                                  .withAlpha (alpha));
 
-            const auto thumb_height_above = 0.5f * height * thumbs[thumb_idx][0];
-            const auto thumb_height_below = 0.5f * height * thumbs[thumb_idx][1];
+            const auto thumb_height_above = 0.5f * h * thumbs[thumb_idx][0];
+            const auto thumb_height_below = 0.5f * h * thumbs[thumb_idx][1];
             canvas.roundedRectangle (x,
-                                     pad + 0.5f * height - thumb_height_above - y_off,
+                                     pad + 0.5f * h - thumb_height_above - y_off,
                                      thumb_width,
                                      thumb_height_above + thumb_height_below,
                                      spacing);
@@ -259,7 +264,7 @@ struct Audio_Player : Content_Frame
                 canvas.setColor (visage::Color { 0xff9978ee }
                                      .withAlpha (alpha * thumbs_progress_frac));
                 canvas.roundedRectangle (x,
-                                         pad + 0.5f * height - thumb_height_above - y_off,
+                                         pad + 0.5f * h - thumb_height_above - y_off,
                                          thumb_width,
                                          thumb_height_above + thumb_height_below,
                                          spacing);

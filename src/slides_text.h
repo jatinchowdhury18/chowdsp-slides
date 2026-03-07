@@ -30,34 +30,33 @@ static visage::Font::Justification gon_justification (Gon_Ref gon, visage::Font:
 
 struct Slide_Text
 {
-    std::string text {};
-    visage::Dimension size {};
+    std::string_view text {};
+    Dimension size {};
     visage::Font::Justification justification { visage::Font::kCenter };
     visage::Color color {};
     File* font {};
     Dims dims {};
 };
 
-Slide_Text gon_slide_text (Gon_Ref gon, File_Allocator& file_alloc)
+Slide_Text gon_slide_text (Gon_Ref gon, const Default_Params& params)
 {
     return Slide_Text {
-        .text = gon["text"].String ({}),
+        .text = params.frame_allocator->copy_string (gon["text"].StringView ({})),
         .size = gon_dim (gon["size"]),
         .justification = gon_justification (gon["justification"], visage::Font::kCenter),
         .color = gon["color"].UInt ({}),
-        .font = gon_file (gon["font"], file_alloc),
+        .font = gon_file (gon["font"], *params.file_allocator),
         .dims = gon_dims (gon["dims"]),
     };
 }
 
-// @TODO: vector
-std::vector<Slide_Text> gon_text_array (Gon_Ref gon, File_Allocator& file_alloc)
+std::span<Slide_Text> gon_text_array (Gon_Ref gon, const Default_Params& params)
 {
-    std::vector<Slide_Text> res {};
-    res.reserve (gon.size());
+    auto text = params.frame_allocator->make_span<Slide_Text> (gon.size());
+    size_t idx = 0;
     for (const auto& g : gon)
-        res.push_back (gon_slide_text (g, file_alloc));
-    return res;
+        text[idx++] = gon_slide_text (g, params);
+    return text;
 }
 
 static void merge_params (Slide_Text& text, const Default_Params& params)
@@ -77,7 +76,7 @@ static void draw_text (const Slide_Text& text,
         return;
 
     const auto height = compute_dim (text.size, parent);
-    auto* stored_text = canvas.getText (text.text.data(),
+    auto* stored_text = canvas.getText (std::string { text.text },
                                         visage::Font { height, text.font->data, (int) text.font->size },
                                         text.justification);
     stored_text->setMultiLine (true);

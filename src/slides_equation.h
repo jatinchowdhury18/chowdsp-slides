@@ -10,7 +10,7 @@ struct Equation_Params
     std::string equation_string {};
     visage::Color background_color { 0xff181B1F };
     visage::Color equation_color { 0xffffffff };
-    visage::Dimension padding { visage::Dimension::heightPercent (3.5) };
+    Dimension padding { height_percent (2.5) };
 };
 
 static Equation_Params gon_equation_params (Gon_Ref gon)
@@ -19,7 +19,7 @@ static Equation_Params gon_equation_params (Gon_Ref gon)
         .equation_string = gon["equation"].String ({}),
         .background_color = gon["background_color"].UInt (0xff181B1F),
         .equation_color = gon["equation_color"].Int (0xffffffff),
-        .padding = gon_dim (gon["padding"], visage::Dimension::heightPercent (2.5)),
+        .padding = gon_dim (gon["padding"], height_percent (2.5)),
     };
 }
 

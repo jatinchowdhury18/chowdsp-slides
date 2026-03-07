@@ -4,7 +4,10 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <cstring>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #if CHOWDSP_SLIDES_WINDOWS
@@ -88,6 +91,18 @@ struct Allocator
         return { allocate<T> (size, alignment), static_cast<size_t> (size) };
     }
 
+    std::string_view copy_string (std::string_view str)
+    {
+        if (str.empty())
+            return {};
+
+        const auto strlen = str.size();
+        auto* data = (char*) allocate_bytes (strlen + 1);
+        std::memcpy (data, str.data(), strlen);
+        data[strlen] = 0; // null terminator
+        return { data, strlen };
+    }
+
     static Chunk* create_chunk (size_t size)
     {
         static constexpr size_t chunk_alignment = 64;
@@ -140,4 +155,54 @@ struct Lifetime_Allocator : Allocator
         return ptr;
     }
 };
+
+namespace format_detail
+{
+    inline std::string_view to_sv (std::string_view v) { return v; }
+    inline std::string_view to_sv (const std::string& v) { return v; }
+    inline std::string_view to_sv (const char* v) { return v ? std::string_view { v } : std::string_view {}; }
+    inline std::string_view to_sv (char* v) { return v ? std::string_view { v } : std::string_view {}; }
+    inline size_t formatted_size (std::string_view fmt) { return fmt.size(); }
+
+    template <typename Arg, typename... Rest>
+    size_t formatted_size (std::string_view fmt, Arg&& arg, Rest&&... rest)
+    {
+        const auto pos = fmt.find ("{}");
+        const auto sv = to_sv (std::forward<Arg> (arg));
+        return pos
+               + sv.size()
+               + formatted_size (fmt.substr (pos + 2), std::forward<Rest> (rest)...);
+    }
+
+    inline char* write_fmt (char* out, std::string_view fmt)
+    {
+        std::memcpy (out, fmt.data(), fmt.size());
+        return out + fmt.size();
+    }
+
+    template <typename Arg, typename... Rest>
+    char* write_fmt (char* out, std::string_view fmt, Arg&& arg, Rest&&... rest)
+    {
+        const auto pos = fmt.find ("{}");
+
+        std::memcpy (out, fmt.data(), pos);
+        out += pos;
+
+        const auto sv = to_sv (std::forward<Arg> (arg));
+        std::memcpy (out, sv.data(), sv.size());
+        out += sv.size();
+
+        return write_fmt (out, fmt.substr (pos + 2), std::forward<Rest> (rest)...);
+    }
+} // namespace format_detail
+
+template <typename... Args>
+std::string_view arena_format (Allocator& allocator, std::string_view fmt, Args&&... args)
+{
+    const auto size = format_detail::formatted_size (fmt, args...);
+    auto* buffer = static_cast<char*> (allocator.allocate_bytes (size + 1));
+    char* end = format_detail::write_fmt (buffer, fmt, std::forward<Args> (args)...);
+    *end = '\0';
+    return { buffer, size };
+}
 } // namespace chowdsp::slides

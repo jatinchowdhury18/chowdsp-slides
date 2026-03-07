@@ -100,6 +100,8 @@ void slides_runner (Run_Opts run_opts)
                 }
             }
         };
+
+        using namespace visage::dimension;
         slides->layout().setDimensions (100_vw, 100_vh);
         window.setTitle (std::string { slides->slide_metadata.slideshow_title });
         window.computeLayout (slides);

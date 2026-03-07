@@ -27,10 +27,10 @@ struct File
 
     File() = default;
 
-    File (std::string path)
+    File (std::string_view path)
     {
 #if CHOWDSP_SLIDES_POSIX
-        int fd = open (path.c_str(), O_RDONLY);
+        int fd = open (path.data(), O_RDONLY);
         if (fd == -1)
             assert (false);
 
@@ -46,7 +46,7 @@ struct File
 
         close (fd);
 #elif CHOWDSP_SLIDES_WINDOWS
-        const auto file = CreateFile (path.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        const auto file = CreateFile (path.data(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 
         LARGE_INTEGER lp_file_size;
         GetFileSizeEx (file, &lp_file_size);

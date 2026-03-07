@@ -273,6 +273,11 @@ std::string GonObject::String() const {
     if(type != FieldType::STRING && type != FieldType::NUMBER && type != FieldType::BOOL) ErrorCallback("GON ERROR: Field \""+(!name.empty()?name:last_accessed_named_field)+"\" is not a string");
     return string_data;
 }
+std::string_view GonObject::StringView() const {
+    if(type == FieldType::NULLGON) ErrorCallback("GON ERROR: Field \""+(!name.empty()?name:last_accessed_named_field)+"\" does not exist");
+    if(type != FieldType::STRING && type != FieldType::NUMBER && type != FieldType::BOOL) ErrorCallback("GON ERROR: Field \""+(!name.empty()?name:last_accessed_named_field)+"\" is not a string");
+    return string_data;
+}
 const char* GonObject::CString() const {
     if(type == FieldType::NULLGON) ErrorCallback("GON ERROR: Field \""+(!name.empty()?name:last_accessed_named_field)+"\" does not exist");
     if(type != FieldType::STRING && type != FieldType::NUMBER && type != FieldType::BOOL) ErrorCallback("GON ERROR: Field \""+(!name.empty()?name:last_accessed_named_field)+"\" is not a string");
@@ -319,6 +324,10 @@ bool GonObject::Bool() const {
 
 //options with a default value
 std::string GonObject::String(const std::string& _default) const {
+    if(type != FieldType::STRING && type != FieldType::NUMBER && type != FieldType::BOOL) return _default;
+    return string_data;
+}
+std::string_view GonObject::StringView(std::string_view _default) const {
     if(type != FieldType::STRING && type != FieldType::NUMBER && type != FieldType::BOOL) return _default;
     return string_data;
 }

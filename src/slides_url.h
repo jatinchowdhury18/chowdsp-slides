@@ -1,7 +1,6 @@
 #pragma once
 
-#include <cstdlib>
-#include <string>
+#include "slides_allocator.h"
 
 #if CHOWDSP_SLIDES_WINDOWS
 #include <windows.h>
@@ -19,25 +18,27 @@ EM_JS (void, open_url_js, (const char* u), {
 });
 #endif
 
-static void launch_url (const std::string& url)
+static void launch_url (std::string_view url, Allocator& arena)
 {
+    // @TODO: arena frame...
+
 #if CHOWDSP_SLIDES_WINDOWS
 
-    ShellExecuteA (nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    ShellExecuteA (nullptr, "open", url.data(), nullptr, nullptr, SW_SHOWNORMAL);
 
 #elif CHOWDSP_SLIDES_MACOS
 
-    std::string cmd = "open \"" + url + "\"";
-    system (cmd.c_str());
+    auto cmd = arena_format(arena, "open \"{}\"", url);
+    system (cmd.data());
 
 #elif CHOWDSP_SLIDES_LINUX
 
-    std::string cmd = "xdg-open \"" + url + "\"";
-    system (cmd.c_str());
+    const auto cmd = arena_format(arena, "xdg-open \"{}\"", url);
+    system (cmd.data());
 
 #elif CHOWDSP_SLIDES_WEB
 
-    open_url_js (url.c_str());
+    open_url_js (url.data());
 
 #endif
 }

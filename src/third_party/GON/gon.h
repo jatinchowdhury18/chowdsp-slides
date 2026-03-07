@@ -3,6 +3,7 @@
 
 #pragma once
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 #include <functional>
@@ -59,6 +60,7 @@ class GonObject {
 
         //throw error if accessing wrong type, otherwise return correct type
         std::string String() const;
+        std::string_view StringView() const;
         const char* CString() const;
         int32_t Int() const;
         uint32_t UInt() const;
@@ -68,6 +70,7 @@ class GonObject {
 
         //returns a default value if the field doesn't exist or is the wrong type
         std::string String(const std::string& _default) const;
+        std::string_view StringView(std::string_view _default) const;
         const char* CString(const char* _default) const;
         int32_t Int(int32_t _default) const;
         uint32_t UInt(uint32_t _default) const;
