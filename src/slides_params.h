@@ -139,6 +139,7 @@ struct Default_Params
     GonObject footer_params {};
 
     File* font {};
+    File* code_font {};
     visage::Color background_color { 0xff33393f };
     visage::Color text_color { 0xffffffff };
     std::array<float, 2> aspect_ratio {};
@@ -149,6 +150,7 @@ static Default_Params gon_default_params (Gon_Ref gon, File_Allocator& file_allo
     Default_Params params {};
     params.file_allocator = &file_alloc;
     params.font = gon_file (gon["font"], file_alloc);
+    params.code_font = gon_file (gon["code_font"], file_alloc);
     params.background_color = gon["background_color"].UInt (0xff33393f);
     params.text_color = gon["text_color"].UInt (0xffffffff);
     params.header_params = gon["header"];

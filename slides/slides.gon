@@ -3,6 +3,7 @@ author = "Jatin Chowdhury"
 
 params = {
     font = "assets/Lato-Regular.ttf"
+    code_font = "assets/JetBrainsMono-Regular.ttf"
     footer = {
         height = 4_vh
         style = "PROGRESS_WITH_NUMBER"
@@ -28,6 +29,29 @@ slides = [
                 justification = "Center"
                 dims = ["0_vw", "50_vh", "100_vw", "50_vh"]
             },
+        ]
+    },
+
+    {
+        title = {
+            text = "Code Slide"
+            size = 8_vh
+            justification = "Left"
+        }
+
+        content = [
+            {
+                type = "code"
+
+                frame_params = {
+                    dims = ["2_vw", "10_vh", "47_vw", "90_vh"]
+                }
+
+                params = {
+                    code_file = "assets/code_snippet.cpp",
+                    lang = "cpp",
+                }
+            }
         ]
     },
 
