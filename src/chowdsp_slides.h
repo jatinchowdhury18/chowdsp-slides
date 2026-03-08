@@ -9,6 +9,7 @@
 
 #include "slides_audio_player.h"
 #include "slides_bullets.h"
+#include "slides_code_view.h"
 #include "slides_equation.h"
 #include "slides_footer.h"
 #include "slides_image.h"
@@ -78,24 +79,31 @@ static std::span<Content_Frame*> gon_content_array (Gon_Ref gon, const Default_P
         }
         else if (type == "equation")
         {
-            content[idx++] = params.frame_allocator->allocate<Equation> (
-                params,
-                frame_params,
-                gon_equation_params (g["params"]));
+            // content[idx++] = params.frame_allocator->allocate<Equation> (
+            //     params,
+            //     frame_params,
+            //     gon_equation_params (g["params"]));
         }
         else if (type == "web")
         {
-            content[idx++] = params.frame_allocator->allocate<Web_View> (
-                params,
-                frame_params,
-                gon_web_view_params (g["params"]));
+            // content[idx++] = params.frame_allocator->allocate<Web_View> (
+            //     params,
+            //     frame_params,
+            //     gon_web_view_params (g["params"]));
         }
         else if (type == "web_img")
         {
-            content[idx++] = params.frame_allocator->allocate<Web_View> (
+            // content[idx++] = params.frame_allocator->allocate<Web_View> (
+            //     params,
+            //     frame_params,
+            //     gon_web_img_params (g["params"]));
+        }
+        else if (type == "code")
+        {
+            content[idx++] = params.frame_allocator->allocate<Code_View> (
                 params,
                 frame_params,
-                gon_web_img_params (g["params"]));
+                gon_code_view_params (g["params"], *params.file_allocator));
         }
         else
         {
