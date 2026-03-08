@@ -38,6 +38,17 @@ static Web_View_Params gon_web_img_params (Gon_Ref gon)
     return params;
 }
 
+static Web_View_Params gon_youtube_params (Gon_Ref gon)
+{
+    std::string youtube_html = "<iframe style=\"position:fixed; top:0; left:0; bottom:0; right:0; width:100%; height:100%; border:none; margin:0; padding:0; overflow:hidden; z-index:999999;\" src=\"https://www.youtube.com/embed/";
+    youtube_html += gon["url"].String ({});
+    youtube_html += "\" title=\"YouTube video player\" frameborder=\"0\" allow=\"accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>";
+
+    return Web_View_Params {
+        .html = youtube_html,
+    };
+}
+
 #if CHOWDSP_SLIDES_NATIVE
 void get_web_img_params (const std::string& file_path, Web_View_Params& params)
 {
