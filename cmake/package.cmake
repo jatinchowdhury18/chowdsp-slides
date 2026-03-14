@@ -6,8 +6,8 @@ function(slides_app target target_dir)
 
     set(js_sources "${chowdsp_slides_dir}/src/third_party/mathjax-bundle/mathjax-embedded.js")
     if(NOT EMSCRIPTEN)
-        add_embedded_resources(embedded_js "embedded_js.h" "chowdsp::slides::resources::js" "${js_sources}")
-        target_link_libraries(${target} PRIVATE embedded_js)
+        add_embedded_resources(${target}_embedded_js "embedded_js.h" "chowdsp::slides::resources::js" "${js_sources}")
+        target_link_libraries(${target} PRIVATE ${target}_embedded_js)
     endif()
 
     if (WIN32)
