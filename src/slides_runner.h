@@ -91,7 +91,10 @@ void slides_runner (Run_Opts run_opts)
             {
                 if (slides->params.aspect_ratio[0] > 0.0f)
                 {
-                    const auto bounds = fit_and_center (window.width(), window.height(), 16.0f, 9.0f);
+                    const auto bounds = fit_and_center (window.width(),
+                                                        window.height(),
+                                                        slides->params.aspect_ratio[0],
+                                                        slides->params.aspect_ratio[1]);
                     slides->setBounds (bounds[0], bounds[1], bounds[2], bounds[3]);
                 }
                 else
@@ -102,7 +105,7 @@ void slides_runner (Run_Opts run_opts)
         };
 
         using namespace visage::dimension;
-        slides->layout().setDimensions (100_vw, 100_vh);
+        window.onResize().callback();
         window.setTitle (std::string { slides->slide_metadata.slideshow_title });
         window.computeLayout (slides);
 

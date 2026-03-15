@@ -35,6 +35,7 @@ function(slides_app target target_dir)
             list(APPEND preload_commands "${preload_cmd}")
         endforeach()
         list(APPEND preload_commands "SHELL:--preload-file \"${target_dir}/slides.gon@slides.gon\"")
+        set_source_files_properties(${chowdsp_slides_dir}/src/slides_main.cpp PROPERTIES OBJECT_DEPENDS ${target_dir}/slides.gon)
         message(STATUS "Pre-load commands: ${preload_commands}")
 
         target_link_options(${target}
@@ -55,11 +56,11 @@ function(slides_app target target_dir)
             RUNTIME_OUTPUT_DIRECTORY "${target_dir}/web"
         )
 
-        add_custom_target(copy_js ALL
+        add_custom_target(${target}_copy_js ALL
             COMMENT "Copying JS to ${target_dir}/web/src"
         )
         add_custom_command(
-            TARGET copy_js
+            TARGET ${target}_copy_js
             PRE_BUILD
             COMMAND ${CMAKE_COMMAND} -E remove_directory "${target_dir}/web/src"
             COMMENT "Deleting old JS folder: ${target_dir}/web/src"
@@ -68,11 +69,11 @@ function(slides_app target target_dir)
         )
         foreach(js_source ${js_sources})
             add_custom_command(
-                TARGET copy_js POST_BUILD
+                TARGET ${target}_copy_js POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy "${js_source}" "${target_dir}/web/src"
                 COMMENT "Copying ${js_source} to ${target_dir}/web/src"
             )
         endforeach()
-        add_dependencies(${target} copy_js)
+        add_dependencies(${target} ${target}_copy_js)
     endif ()
 endfunction()
