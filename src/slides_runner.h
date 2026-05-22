@@ -4,6 +4,12 @@
 #include "slides_dll.h"
 #include <filesystem>
 
+// If the slides directory contains custom_slides.h, pull it in automatically.
+// This is the standard place to define and register custom Content_Frame types.
+#if __has_include("custom_slides.h")
+#include "custom_slides.h"
+#endif
+
 namespace chowdsp::slides
 {
 static Slideshow* make_slides (visage::Window* window)

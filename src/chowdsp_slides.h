@@ -10,6 +10,7 @@
 #include "slides_audio_player.h"
 #include "slides_bullets.h"
 #include "slides_code_view.h"
+#include "slides_custom.h"
 #include "slides_equation.h"
 #include "slides_footer.h"
 #include "slides_image.h"
@@ -114,8 +115,11 @@ static std::span<Content_Frame*> gon_content_array (Gon_Ref gon, const Default_P
         }
         else
         {
-            // @TODO: handle "custom" content?
-            // assert (false);
+            auto* custom = global_custom_registry().make (type, params, frame_params, g);
+            if (custom != nullptr)
+                content[idx++] = custom;
+            else
+                std::cout << "WARNING: unknown content type '" << type << "'\n";
         }
     }
 

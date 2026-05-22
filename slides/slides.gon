@@ -34,6 +34,71 @@ slides = [
 
     {
         title = {
+            text = "Color Cards"
+            size = 8_vh
+            justification = "Left"
+        }
+
+        content = [
+            {
+                type = "color_card"
+                frame_params = { dims = ["2_vw", "12_vh", "30_vw", "40_vh"] }
+                params = {
+                    color = 0xff1a73e8
+                    label = "Blue"
+                    font_size = "6_vh"
+                }
+            },
+            {
+                type = "color_card"
+                frame_params = { dims = ["35_vw", "12_vh", "30_vw", "40_vh"] }
+                params = {
+                    color = 0xffe53935
+                    label = "Red"
+                    font_size = "6_vh"
+                }
+            },
+            {
+                type = "color_card"
+                frame_params = { dims = ["68_vw", "12_vh", "30_vw", "40_vh"] }
+                params = {
+                    color = 0xff43a047
+                    label = "Green"
+                    font_size = "6_vh"
+                }
+            },
+            {
+                type = "color_card"
+                frame_params = { dims = ["2_vw", "58_vh", "30_vw", "40_vh"] }
+                params = {
+                    color = 0xfffb8c00
+                    label = "Orange"
+                    font_size = "6_vh"
+                }
+            },
+            {
+                type = "color_card"
+                frame_params = { dims = ["35_vw", "58_vh", "30_vw", "40_vh"] }
+                params = {
+                    color = 0xff8e24aa
+                    label = "Purple"
+                    font_size = "6_vh"
+                }
+            },
+            {
+                type = "color_card"
+                frame_params = { dims = ["68_vw", "58_vh", "30_vw", "40_vh"] }
+                params = {
+                    color = 0xff00897b
+                    label = "Teal"
+                    font_size = "6_vh"
+                }
+            },
+        ]
+    },
+
+    {
+        title = {
             text = "Slide #1"
             size = 8_vh
             justification = "Left"
