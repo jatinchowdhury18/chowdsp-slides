@@ -34,7 +34,7 @@ slides = [
 
     {
         title = {
-            text = "Color Cards"
+            text = "Custom Frames"
             size = 8_vh
             justification = "Left"
         }
@@ -42,7 +42,10 @@ slides = [
         content = [
             {
                 type = "color_card"
-                frame_params = { dims = ["2_vw", "12_vh", "30_vw", "40_vh"] }
+                frame_params = {
+                    dims = ["2_vw", "12_vh", "30_vw", "40_vh"]
+                    animate = true
+                }
                 params = {
                     color = 0xff1a73e8
                     label = "Blue"
@@ -51,7 +54,10 @@ slides = [
             },
             {
                 type = "color_card"
-                frame_params = { dims = ["35_vw", "12_vh", "30_vw", "40_vh"] }
+                frame_params = {
+                    dims = ["35_vw", "12_vh", "30_vw", "40_vh"]
+                    animate = true
+                }
                 params = {
                     color = 0xffe53935
                     label = "Red"
@@ -60,7 +66,10 @@ slides = [
             },
             {
                 type = "color_card"
-                frame_params = { dims = ["68_vw", "12_vh", "30_vw", "40_vh"] }
+                frame_params = {
+                    dims = ["68_vw", "12_vh", "30_vw", "40_vh"]
+                    animate = true
+                }
                 params = {
                     color = 0xff43a047
                     label = "Green"
@@ -68,30 +77,11 @@ slides = [
                 }
             },
             {
-                type = "color_card"
+                type = "sine_oscillator"
                 frame_params = { dims = ["2_vw", "58_vh", "30_vw", "40_vh"] }
                 params = {
-                    color = 0xfffb8c00
-                    label = "Orange"
-                    font_size = "6_vh"
-                }
-            },
-            {
-                type = "color_card"
-                frame_params = { dims = ["35_vw", "58_vh", "30_vw", "40_vh"] }
-                params = {
-                    color = 0xff8e24aa
-                    label = "Purple"
-                    font_size = "6_vh"
-                }
-            },
-            {
-                type = "color_card"
-                frame_params = { dims = ["68_vw", "58_vh", "30_vw", "40_vh"] }
-                params = {
-                    color = 0xff00897b
-                    label = "Teal"
-                    font_size = "6_vh"
+                    frequency = 220.0
+                    gain = 0.2
                 }
             },
         ]

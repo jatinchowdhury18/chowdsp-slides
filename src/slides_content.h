@@ -1,6 +1,7 @@
 #pragma once
 
 #include "slides_params.h"
+#include "slides_audio_source.h"
 
 namespace chowdsp::slides
 {
@@ -46,19 +47,40 @@ struct Content_Frame : visage::Frame
         animation.target (! frame_params.animate);
     }
 
-    void show()
+    virtual void show()
     {
         if (frame_params.animate)
             animation.target (true);
         setVisible (true);
+
+        if (default_params.audio_engine != nullptr)
+            if (auto* audio = dynamic_cast<Custom_Audio_Source*> (this))
+                audio->connect (*default_params.audio_engine);
+
         redrawAll();
     }
 
-    void hide()
+    virtual void hide()
     {
+        if (default_params.audio_engine != nullptr)
+            if (auto* audio = dynamic_cast<Custom_Audio_Source*> (this))
+                audio->disconnect();
+
         if (frame_params.animate)
             animation.target (false);
         redrawAll();
+    }
+
+    void visibilityChanged() override
+    {
+        // If this frame is also a Custom_Audio_Source, ensure we never keep
+        // audio running while the frame is not visible (e.g. when switching slides).
+        if (! isVisible())
+        {
+            if (default_params.audio_engine != nullptr)
+                if (auto* audio = dynamic_cast<Custom_Audio_Source*> (this))
+                    audio->disconnect();
+        }
     }
 
     void draw (visage::Canvas& canvas) override

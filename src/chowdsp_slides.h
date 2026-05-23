@@ -8,6 +8,7 @@
 #include "slides_background_task.h"
 
 #include "slides_audio_player.h"
+#include "slides_audio_source.h"
 #include "slides_bullets.h"
 #include "slides_code_view.h"
 #include "slides_custom.h"
