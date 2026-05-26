@@ -223,11 +223,6 @@ struct Sine_Oscillator : Content_Frame, Custom_Audio_Source
         addChild (gain_slider);
     }
 
-    ~Sine_Oscillator() override
-    {
-        disconnect();
-    }
-
     // Reset phase when audio starts
     void on_audio_start() override
     {

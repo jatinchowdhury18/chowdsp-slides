@@ -12,6 +12,7 @@ struct Code_View_Params
     Dimension font_size {};
     visage::Color background_color { 0xff181B1F };
     visage::Color code_color { 0xffffffff };
+    Dimension padding { height_percent (2.0) };
 };
 
 static Code_View_Params gon_code_view_params (Gon_Ref gon, File_Allocator& file_allocator)
@@ -21,6 +22,7 @@ static Code_View_Params gon_code_view_params (Gon_Ref gon, File_Allocator& file_
         .font_size = gon_dim (gon["font_size"], height_percent (4)),
         .background_color = gon["background_color"].UInt (0xff181B1F),
         .code_color = gon["code_color"].UInt (0xffffffff),
+        .padding = gon_dim (gon["padding"], height_percent (2.0)),
     };
 }
 
@@ -61,7 +63,7 @@ struct Code_View : Content_Frame
                                          (int) default_params.code_font->size };
         editor.setFont (font);
 
-        const auto round_width = 0.05f * width();
+        const auto round_width = compute_dim (params.padding, *default_params.slideshow_frame);
         editor.setBackgroundRounding (round_width);
         editor.setMargin (round_width * 0.5f, round_width * 0.5f);
     }

@@ -35,7 +35,10 @@ struct Custom_Audio_Source
         ma_uint32 sample_rate {};
     };
 
-    virtual ~Custom_Audio_Source() = default;
+    virtual ~Custom_Audio_Source()
+    {
+        disconnect();
+    }
 
     // -----------------------------------------------------------------------
     // Optional hooks called when audio starts/stops.
