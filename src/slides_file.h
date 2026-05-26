@@ -32,7 +32,10 @@ struct File
 #if CHOWDSP_SLIDES_POSIX
         int fd = open (path.data(), O_RDONLY);
         if (fd == -1)
+        {
+            std::cout << "Unable to load file from path: " << path << '\n';
             assert (false);
+        }
 
         struct stat sb;
         if (fstat (fd, &sb) == -1)

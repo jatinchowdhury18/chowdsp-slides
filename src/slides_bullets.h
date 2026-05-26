@@ -172,8 +172,8 @@ struct Bullet_List : Content_Frame
     {
         Content_Frame::draw (canvas);
 
-        canvas.setColor (visage::Color { bullet_list_params.background_color }
-                             .withAlpha (fade_alpha()));
+        const auto background_color = visage::Color { bullet_list_params.background_color };
+        canvas.setColor (background_color.withAlpha (background_color.alpha() * fade_alpha()));
         const auto pad = compute_dim (bullet_list_params.padding, *default_params.slideshow_frame);
         canvas.roundedRectangle (0, 0, width(), height(), pad);
     }
