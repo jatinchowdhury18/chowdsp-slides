@@ -274,6 +274,8 @@ static std::span<Slide*> gon_slides (Gon_Ref gon, const Default_Params& params)
     return slides;
 }
 
+#include "slides_world_view.h"
+
 struct Slideshow : visage::Frame
 {
     Audio_Engine audio_engine {};
@@ -292,6 +294,7 @@ struct Slideshow : visage::Frame
 
     Header_Footer* header {};
     Header_Footer* footer {};
+    World_View* world_view {};
 
     // This doesn't work on the web!
     // Background_Task background_task {};
@@ -356,6 +359,22 @@ struct Slideshow : visage::Frame
         slide_metadata.slideshow_author = gon["author"].String ("");
         slide_metadata.slides_count = slides.size();
         update_slide_metadata();
+
+        world_view = frame_allocator.allocate<World_View> (slides, params);
+        addChild (world_view, false);
+        world_view->layout().setDimensions (100_vw, 100_vh);
+        world_view->setOnTop (true);
+        world_view->on_slide_selected = [this] (size_t idx)
+        {
+            set_state (idx, 0);
+            world_view->setVisible (false);
+            requestKeyboardFocus();
+        };
+        world_view->on_close = [this]
+        {
+            world_view->setVisible (false);
+            requestKeyboardFocus();
+        };
 
         requestKeyboardFocus();
         setAcceptsKeystrokes (true);
@@ -450,6 +469,14 @@ struct Slideshow : visage::Frame
 
     bool keyPress (const visage::KeyEvent& key) override
     {
+        if (key.keyCode() == visage::KeyCode ('w'))
+        {
+            if (world_view->isVisible())
+                world_view->on_close();
+            else
+                world_view->open (active_slide);
+            return true;
+        }
         if (key.keyCode() == visage::KeyCode::Right)
         {
             next_step();
