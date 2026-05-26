@@ -34,61 +34,6 @@ slides = [
 
     {
         title = {
-            text = "Custom Frames"
-            size = 8_vh
-            justification = "Left"
-        }
-
-        content = [
-            {
-                type = "color_card"
-                frame_params = {
-                    dims = ["2_vw", "12_vh", "30_vw", "40_vh"]
-                    animate = true
-                }
-                params = {
-                    color = 0xff1a73e8
-                    label = "Blue"
-                    font_size = "6_vh"
-                }
-            },
-            {
-                type = "color_card"
-                frame_params = {
-                    dims = ["35_vw", "12_vh", "30_vw", "40_vh"]
-                    animate = true
-                }
-                params = {
-                    color = 0xffe53935
-                    label = "Red"
-                    font_size = "6_vh"
-                }
-            },
-            {
-                type = "color_card"
-                frame_params = {
-                    dims = ["68_vw", "12_vh", "30_vw", "40_vh"]
-                    animate = true
-                }
-                params = {
-                    color = 0xff43a047
-                    label = "Green"
-                    font_size = "6_vh"
-                }
-            },
-            {
-                type = "sine_oscillator"
-                frame_params = { dims = ["2_vw", "58_vh", "30_vw", "40_vh"] }
-                params = {
-                    frequency = 220.0
-                    gain = 0.2
-                }
-            },
-        ]
-    },
-
-    {
-        title = {
             text = "Slide #1"
             size = 8_vh
             justification = "Left"
@@ -263,16 +208,96 @@ slides = [
         content = [
             {
                 type = "code"
-
-                frame_params = {
-                    dims = ["2_vw", "10_vh", "47_vw", "90_vh"]
-                }
-
+                frame_params = { dims = ["2_vw", "10_vh", "46_vw", "42_vh"] }
                 params = {
                     code_file = "assets/code_snippet.cpp",
                     lang = "cpp",
                 }
+            },
+            {
+                type = "code"
+                frame_params = { dims = ["52_vw", "10_vh", "46_vw", "42_vh"] }
+                params = {
+                    code_file = "assets/code_snippet.py",
+                    lang = "python",
+                    theme = "basic-light",
+                }
+            },
+            {
+                type = "code"
+                frame_params = { dims = ["2_vw", "54_vh", "46_vw", "44_vh"] }
+                params = {
+                    code_file = "assets/code_snippet.js",
+                    lang = "js",
+                    theme = "one-dark",
+                    font_size = 2.1_vh
+                }
+            },
+            {
+                type = "code"
+                frame_params = { dims = ["52_vw", "54_vh", "46_vw", "44_vh"] }
+                params = {
+                    code_file = "assets/code_snippet.jai",
+                    lang = "jai",
+                    theme = "focus",
+                    font_size = 2.75_vh
+                }
             }
+        ]
+    },
+
+    {
+        title = {
+            text = "Custom Frames"
+            size = 8_vh
+            justification = "Left"
+        }
+
+        content = [
+            {
+                type = "color_card"
+                frame_params = {
+                    dims = ["2_vw", "12_vh", "30_vw", "40_vh"]
+                    animate = true
+                }
+                params = {
+                    color = 0xff1a73e8
+                    label = "Blue"
+                    font_size = "6_vh"
+                }
+            },
+            {
+                type = "color_card"
+                frame_params = {
+                    dims = ["35_vw", "12_vh", "30_vw", "40_vh"]
+                    animate = true
+                }
+                params = {
+                    color = 0xffe53935
+                    label = "Red"
+                    font_size = "6_vh"
+                }
+            },
+            {
+                type = "color_card"
+                frame_params = {
+                    dims = ["68_vw", "12_vh", "30_vw", "40_vh"]
+                    animate = true
+                }
+                params = {
+                    color = 0xff43a047
+                    label = "Green"
+                    font_size = "6_vh"
+                }
+            },
+            {
+                type = "sine_oscillator"
+                frame_params = { dims = ["2_vw", "58_vh", "30_vw", "40_vh"] }
+                params = {
+                    frequency = 220.0
+                    gain = 0.2
+                }
+            },
         ]
     },
 ]
