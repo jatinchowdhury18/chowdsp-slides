@@ -84,7 +84,7 @@ static std::span<Content_Frame*> gon_content_array (Gon_Ref gon, const Default_P
             content[idx++] = params.frame_allocator->allocate<Equation> (
                 params,
                 frame_params,
-                gon_equation_params (g["params"]));
+                gon_equation_params (g["params"], *params.frame_allocator));
         }
         else if (type == "web")
         {

@@ -95,13 +95,22 @@ slides = [
                 type = "equation"
 
                 frame_params = {
-                    dims = ["51_vw", "40_vh", "47_vw", "25_vh"]
+                    dims = ["51_vw", "40_vh", "47_vw", "50_vh"]
                     animate = true
                 }
 
                 params = {
-                    equation = "F(k) = \\int_{-\\infty}^{\\infty} f(x)e^{-2\\pi i k x} \\, dx"
-                    padding = 4_vh
+                    equations = [
+                        {
+                            equation = "F(k) = \\int_{-\\infty}^{\\infty} f(x)e^{-2\\pi i k x} \\, dx",
+                            height = 50_vh,
+                        }
+                        {
+                            equation = "X[k] = \\sum_{n=0}^{N-1} x[n]e^{-2\\pi i \\frac{k}{N} n}",
+                            height = 50_vh,
+                        }
+                     ]
+                    padding = 3_vh
                 }
             },
         ]
