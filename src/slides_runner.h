@@ -12,11 +12,11 @@
 
 namespace chowdsp::slides
 {
-static Slideshow* make_slides (visage::Window* window)
+static Slideshow* make_slides (visage::Window* window, bool instant_animations = false)
 {
     try
     {
-        return new Slideshow { GonObject::Load ("slides.gon"), window };
+        return new Slideshow { GonObject::Load ("slides.gon"), window, instant_animations };
     }
     catch (const std::exception& e)
     {
@@ -31,8 +31,20 @@ struct Reload_State
     size_t animation_step { 0 };
 };
 
+struct Render_Request
+{
+    size_t slide_idx {};
+    size_t steps {}; // SIZE_MAX renders the slide fully revealed
+    std::string_view path {};
+};
+
 struct Run_Opts
 {
+    // --render slide:step:out.png (repeatable) renders windowlessly, then exits
+    std::span<Render_Request> renders {};
+    int render_width = 1600;
+    int render_height = 900;
+
     // hot-reloading stuff
     bool hot_reload {};
     Reload_State hot_reload_state {};
@@ -61,8 +73,60 @@ static bool needs_reload (Run_Opts& run_opts)
 static bool needs_reload (Run_Opts&) { return false; }
 #endif
 
+static void render_slides (const Run_Opts& run_opts)
+{
+    auto* slides = make_slides (nullptr, true);
+    if (slides == nullptr)
+        return;
+
+    visage::ApplicationEditor editor;
+    editor.addChild (slides);
+    editor.setWindowless (run_opts.render_width, run_opts.render_height);
+    slides->setBounds (0.0f, 0.0f, editor.width(), editor.height());
+    editor.computeLayout (slides);
+
+    for (const auto& request : run_opts.renders)
+    {
+        if (request.slide_idx >= slides->slides.size())
+        {
+            std::cout << "ERROR: slide " << request.slide_idx << " is out of range\n";
+            continue;
+        }
+
+        // Rewind the current slide so that it's in a clean state if we come back to it later.
+        auto* slide = slides->slides[slides->active_slide];
+        if (slides->active_slide != request.slide_idx || slides->animation_step > request.steps)
+        {
+            while (slide->previous_step())
+                slides->animation_step--;
+            slides->set_state (request.slide_idx, 0);
+            slide = slides->slides[request.slide_idx];
+        }
+
+        while (slides->animation_step < request.steps && slide->next_step())
+            slides->animation_step++;
+        slides->update_slide_metadata();
+
+        // Animations are instant, but a frame still needs one draw to update and another to show the result.
+        for (int i = 0; i < 3; ++i)
+            editor.drawWindow();
+        editor.takeScreenshot().save (std::string { request.path });
+        std::cout << "Rendered slide " << request.slide_idx << " step " << slides->animation_step
+                  << " to " << request.path << '\n';
+    }
+
+    editor.removeChild (slides);
+    delete slides;
+}
+
 void slides_runner (Run_Opts run_opts)
 {
+    if (! run_opts.renders.empty())
+    {
+        render_slides (run_opts);
+        return;
+    }
+
     visage::ApplicationWindow window;
     window.onDraw() = [] (visage::Canvas& canvas)
     {

@@ -143,6 +143,9 @@ struct Default_Params
     visage::Color background_color { 0xff33393f };
     visage::Color text_color { 0xffffffff };
     std::array<float, 2> aspect_ratio {};
+
+    // Skips animation timing so that every transition completes on the next draw (used for rendering).
+    bool instant_animations {};
 };
 
 static Default_Params gon_default_params (Gon_Ref gon, File_Allocator& file_alloc)

@@ -109,7 +109,7 @@ struct Equation : Content_Frame
                 .height_ex = svg_ex_attribute (svg_string, "height"),
             };
 
-            if (! frame_params.animate)
+            if (! frame_params.animate || default_params.instant_animations)
                 svg.animation.setAnimationTime (0);
             else
                 svg.animation.setAnimationTime (visage::Animation<float>::kRegularTime / frame_params.animation_speed);

@@ -71,6 +71,10 @@ struct Web_View : Content_Frame
         : Content_Frame { def_params, frame_params },
           web_view_params { params }
     {
+        // Web views live in their own native window, so there's nothing to attach to when rendering windowless.
+        if (default_params.window == nullptr)
+            return;
+
         choc::ui::WebView::Options options;
         options.enableDebugMode = false;
         options.enableDebugInspector = false; // Set to true to open dev tools

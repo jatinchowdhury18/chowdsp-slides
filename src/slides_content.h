@@ -39,7 +39,7 @@ struct Content_Frame : visage::Frame
     {
         setVisible (false);
 
-        if (! frame_params.animate)
+        if (! frame_params.animate || default_params.instant_animations)
             animation.setAnimationTime (0);
         else
             animation.setAnimationTime (visage::Animation<float>::kRegularTime / frame_params.animation_speed);

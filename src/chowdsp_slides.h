@@ -299,9 +299,10 @@ struct Slideshow : visage::Frame
     // This doesn't work on the web!
     // Background_Task background_task {};
 
-    Slideshow (Gon_Ref gon, visage::Window* window)
+    Slideshow (Gon_Ref gon, visage::Window* window, bool instant_animations = false)
     {
         params = gon_default_params (gon["params"], file_allocator);
+        params.instant_animations = instant_animations;
         params.frame_allocator = &frame_allocator;
         params.audio_engine = &audio_engine;
         params.image_atlas = &image_atlas;

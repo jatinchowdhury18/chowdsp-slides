@@ -106,14 +106,14 @@ struct Bullet_List : Content_Frame
             if (bullet_params.flags & BULLET_NO_BULLET)
                 return 0.0f;
             const auto marker = visage::String::convertToUtf32 (std::string { bullet_params.marker } + " ");
-            return font (default_params, font_height).stringWidth (marker);
+            return font (default_params, font_height).withDpiScale (dpiScale()).stringWidth (marker);
         }
 
         int line_count (float font_height, float width) const
         {
             const auto text = visage::String::convertToUtf32 (std::string { bullet_params.text });
             const auto text_width = width - marker_width (font_height);
-            return (int) font (default_params, font_height).lineBreaks (text.c_str(), (int) text.size(), text_width).size() + 1;
+            return (int) font (default_params, font_height).withDpiScale (dpiScale()).lineBreaks (text.c_str(), (int) text.size(), text_width).size() + 1;
         }
 
         virtual float fade_alpha() const override
@@ -228,7 +228,7 @@ struct Bullet_List : Content_Frame
             const auto font_height = compute_dim (bullet->bullet_params.font_height, *default_params.slideshow_frame);
             const auto bullet_width = width() - x - pad_x;
             const auto extra_lines = bullet->line_count (font_height, bullet_width) - 1;
-            const auto height = font_height + pad_y + float (extra_lines) * font (default_params, font_height).lineHeight();
+            const auto height = font_height + pad_y + float (extra_lines) * font (default_params, font_height).withDpiScale (dpiScale()).lineHeight();
             bullet->setBounds (x, y, bullet_width, height);
             y += height + compute_dim (bullet->bullet_params.y_pad, *default_params.slideshow_frame);
         }

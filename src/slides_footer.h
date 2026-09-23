@@ -77,7 +77,7 @@ struct Header_Footer : visage::Frame
           params { gon_header_footer_params (gon, default_params) },
           current_slide { slide_metadata }
     {
-        if (! params.animate)
+        if (! params.animate || default_params.instant_animations)
             animation.setAnimationTime (0);
         else
             animation.setAnimationTime (visage::Animation<float>::kRegularTime / params.animation_speed);
