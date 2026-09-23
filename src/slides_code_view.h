@@ -159,6 +159,7 @@ struct Code_View : Content_Frame
           params { params }
     {
         addChild (editor);
+        editor.scrollBar().setVisible (false); // slides aren't meant to be scrolled
         editor.setMultiLine (true);
         editor.setJustification (visage::Font::Justification::kTopLeft);
         palette.setColor (visage::TextEditor::TextEditorBackground, params.background_color);
@@ -167,8 +168,11 @@ struct Code_View : Content_Frame
 
         if (params.code_file != nullptr)
         {
-            const auto code_source = std::string_view { (const char*) params.code_file->data,
-                                                        params.code_file->size };
+            auto code_source = std::string_view { (const char*) params.code_file->data,
+                                                  params.code_file->size };
+            // drop the file's trailing newline(s), which would show as an empty last line
+            while (! code_source.empty() && (code_source.back() == '\n' || code_source.back() == '\r'))
+                code_source.remove_suffix (1);
             editor.setText (std::string { code_source });
             editor.tokens = tokenize_for_lang (code_source, params.lang,
                                                *def_params.frame_allocator);
@@ -187,6 +191,7 @@ struct Code_View : Content_Frame
                                               default_params.code_font->data,
                                               (int) default_params.code_font->size };
         editor.setFont (code_font);
+        editor.setYPosition (0.0f); // if the code doesn't fit, show the top of it
 
         const auto round_width = compute_dim (params.padding, *default_params.slideshow_frame);
         editor.setBackgroundRounding (round_width);

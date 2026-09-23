@@ -62,7 +62,7 @@ static std::span<Content_Frame*> gon_content_array (Gon_Ref gon, const Default_P
             content[idx++] = params.frame_allocator->allocate<Bullet_List> (
                 params,
                 frame_params,
-                gon_bullet_list_params (g["params"]),
+                gon_bullet_list_params (g["params"], *params.frame_allocator),
                 gon_bullet_params_array (g["bullets"], *params.frame_allocator));
         }
         else if (type == "audio_player")
@@ -91,7 +91,7 @@ static std::span<Content_Frame*> gon_content_array (Gon_Ref gon, const Default_P
             content[idx++] = params.frame_allocator->allocate<Web_View> (
                 params,
                 frame_params,
-                gon_web_view_params (g["params"]));
+                gon_web_view_params (g["params"], *params.file_allocator));
         }
         else if (type == "web_img")
         {

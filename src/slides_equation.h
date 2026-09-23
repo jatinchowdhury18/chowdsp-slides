@@ -51,6 +51,9 @@ struct Equation : Content_Frame
     {
         visage::Svg svg {};
         Dimension height {};
+        float width_ex {};
+        float height_ex {};
+        float height_px {};
         visage::Animation<float> animation {
             visage::Animation<float>::kRegularTime,
             visage::Animation<float>::kLinear,
@@ -72,6 +75,21 @@ struct Equation : Content_Frame
         return xml.substr (first_close, last_open - first_close + 6);
     }
 
+    // MathJax sizes its SVGs in "ex", e.g. width="12.3ex".
+    static float svg_ex_attribute (const std::string& xml, const std::string& name)
+    {
+        const auto start = xml.find (name + "=\"");
+        if (start == std::string::npos)
+            return 0.0f;
+        return std::strtof (xml.c_str() + start + name.size() + 2, nullptr);
+    }
+
+    bool auto_fit() const
+    {
+        return std::all_of (equations.begin(), equations.end(), [] (const SVG& e)
+                            { return e.height.amount == 0.0f; });
+    }
+
     Equation (const Default_Params& def_params, Content_Frame_Params frame_params, Equation_Params params)
         : Content_Frame { def_params, frame_params },
           params { params }
@@ -87,6 +105,8 @@ struct Equation : Content_Frame
             SVG svg {
                 .svg { (const unsigned char*) svg_string.data(), (int) svg_string.size() },
                 .height = params.equations[idx].height,
+                .width_ex = svg_ex_attribute (svg_string, "width"),
+                .height_ex = svg_ex_attribute (svg_string, "height"),
             };
 
             if (! frame_params.animate)
@@ -100,15 +120,47 @@ struct Equation : Content_Frame
         }
     }
 
+    float gap_px {};
+
     void resized() override
     {
         const auto pad = compute_dim (params.padding, *default_params.slideshow_frame);
         const auto w = std::round (width() - 2.0f * pad);
-        const auto h = std::round (height() - pad * float (equations.size() + 1));
+        const auto n = float (equations.size());
+        const auto h = std::round (height() - pad * (n + 1.0f));
+        gap_px = pad;
+
+        if (auto_fit())
+        {
+            // One scale (pixels per ex) for every equation in the frame: as large as
+            // fits the width and the stacked height, capped at 3vh per ex. Leftover
+            // height goes into the gaps, up to 7vh each.
+            const auto vh = compute_dim (height_percent (1), *default_params.slideshow_frame);
+            float total_ex = 0.0f;
+            auto scale = 3.0f * vh;
+            for (const auto& eqn : equations)
+            {
+                total_ex += eqn.height_ex;
+                if (eqn.width_ex > 0.0f)
+                    scale = std::min (scale, w / eqn.width_ex);
+            }
+            if (total_ex > 0.0f)
+                scale = std::min (scale, h / total_ex);
+            gap_px = std::clamp ((height() - total_ex * scale) / (n + 1.0f), pad, 7.0f * vh);
+            for (auto& eqn : equations)
+                eqn.height_px = eqn.height_ex * scale;
+        }
+        else
+        {
+            for (auto& eqn : equations)
+                eqn.height_px = eqn.height.amount * h;
+        }
+
         for (auto& eqn : equations)
         {
-            const auto svg_height = eqn.height.amount * h;
-            eqn.svg.setDimensions ((int) w, (int) svg_height, 1.0f);
+            // Rasterized at scale 1: the SVG path atlas is shared by every slide,
+            // and rasterizing at the display's DPI overflows it on longer decks.
+            eqn.svg.setDimensions ((int) w, (int) eqn.height_px, 1.0f);
         }
     }
 
@@ -127,8 +179,7 @@ struct Equation : Content_Frame
         // canvas.segment (0_vw, 50_vh, 100_vw, 50_vh, 1.0f, false);
 
         const auto pad = compute_dim (params.padding, *default_params.slideshow_frame);
-        const auto h = std::round (height() - 2.0f * pad);
-        auto y_off = 0.333f * pad;
+        auto y_off = gap_px;
         for (auto& eqn : equations)
         {
             eqn.animation.update();
@@ -136,12 +187,14 @@ struct Equation : Content_Frame
             if (anim_value > 0.0f)
             {
                 canvas.setColor (params.equation_color.withAlpha (alpha * anim_value));
-                canvas.svg (eqn.svg, 0.5f * pad, y_off);
+                // Canvas::svg() converts the position to pixels and then SvgDrawable
+                // passes it through Canvas::fill(), which converts it again, so undo
+                // one of those conversions here.
+                canvas.svg (eqn.svg, pad / dpiScale(), y_off / dpiScale());
                 redrawAll();
             }
 
-            const auto svg_height = eqn.height.amount * h;
-            y_off += 0.5f * (svg_height + pad);
+            y_off += eqn.height_px + gap_px;
         }
     }
 

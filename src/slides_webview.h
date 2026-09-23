@@ -18,13 +18,15 @@ struct Web_View_Params
 {
     std::string url {};
     std::string html {};
+    File* html_file {};
 };
 
-static Web_View_Params gon_web_view_params (Gon_Ref gon)
+static Web_View_Params gon_web_view_params (Gon_Ref gon, File_Allocator& file_allocator)
 {
     return Web_View_Params {
         .url = gon["url"].String ({}),
         .html = gon["html"].String ({}),
+        .html_file = gon_file (gon["html_file"], file_allocator),
     };
 }
 
@@ -82,6 +84,12 @@ struct Web_View : Content_Frame
             else if (! web_view_params.html.empty())
             {
                 view.setHTML (web_view_params.html);
+            }
+            else if (web_view_params.html_file != nullptr)
+            {
+                const auto html_source = std::string_view { (const char*) web_view_params.html_file->data,
+                                                            web_view_params.html_file->size };
+                view.setHTML (std::string { html_source });
             }
         };
 

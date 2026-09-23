@@ -12,17 +12,25 @@ struct Bullet_List_Params
     Dimension font_height { height_percent (3.5) };
     Dimension padding { height_percent (2.0) };
     Dimension indent { width_percent (4) };
+    std::span<std::string_view> markers {}; // one per indent level, the last one is reused for deeper levels
     bool animate = true;
 };
 
-static Bullet_List_Params gon_bullet_list_params (Gon_Ref gon)
+static Bullet_List_Params gon_bullet_list_params (Gon_Ref gon, Allocator& allocator)
 {
+    const auto markers_gon = gon["markers"];
+    auto markers = allocator.make_span<std::string_view> (markers_gon.size());
+    size_t idx = 0;
+    for (const auto& g : markers_gon)
+        markers[idx++] = allocator.copy_string (g.StringView ({}));
+
     return Bullet_List_Params {
         .background_color = gon["background_color"].UInt (0xff212529),
         .text_color = gon["text_color"].UInt (0xffffffff),
         .font_height = gon_dim (gon["font_height"], height_percent (3.5)),
         .padding = gon_dim (gon["padding"], height_percent (2.0)),
         .indent = gon_dim (gon["indent"], width_percent (4)),
+        .markers = markers,
         .animate = gon["animate"].Bool (true),
     };
 }
@@ -36,6 +44,7 @@ enum Bullet_Flags : uint8_t
 struct Bullet_Params
 {
     std::string_view text {};
+    std::string_view marker {};
     int indent = 0;
     visage::Color text_color {};
     Dimension font_height {};
@@ -48,6 +57,7 @@ static Bullet_Params gon_bullet_params (Gon_Ref gon, Allocator& allocator)
 {
     Bullet_Params params {
         .text = allocator.copy_string (gon["text"].StringView ({})),
+        .marker = allocator.copy_string (gon["marker"].StringView ({})),
         .indent = gon["indent"].Int ({}),
         .text_color = gon["text_color"].UInt ({}),
         .font_height = gon_dim (gon["font_height"]),
@@ -91,6 +101,21 @@ struct Bullet_List : Content_Frame
         {
         }
 
+        float marker_width (float font_height) const
+        {
+            if (bullet_params.flags & BULLET_NO_BULLET)
+                return 0.0f;
+            const auto marker = visage::String::convertToUtf32 (std::string { bullet_params.marker } + " ");
+            return font (default_params, font_height).stringWidth (marker);
+        }
+
+        int line_count (float font_height, float width) const
+        {
+            const auto text = visage::String::convertToUtf32 (std::string { bullet_params.text });
+            const auto text_width = width - marker_width (font_height);
+            return (int) font (default_params, font_height).lineBreaks (text.c_str(), (int) text.size(), text_width).size() + 1;
+        }
+
         virtual float fade_alpha() const override
         {
             const auto parent_alpha = parent->fade_alpha();
@@ -105,17 +130,20 @@ struct Bullet_List : Content_Frame
             if (alpha == 0.0f)
                 return;
 
-            // @TODO: different bullet point options...
-            // probably treat bullet point as an image? then the text would be better aligned too...?
-            auto bullet_text = std::string { bullet_params.flags & BULLET_NO_BULLET ? "" : "- " };
-            bullet_text += bullet_params.text;
             canvas.setColor (bullet_params.text_color.withAlpha (alpha));
             const auto font_height = compute_dim (bullet_params.font_height, *default_params.slideshow_frame);
-            auto* stored_text = canvas.getText (bullet_text,
-                                                font (default_params, font_height),
+            const auto text_font = font (default_params, font_height);
+
+            // The marker sits in its own gutter, so wrapped lines align with the text rather than the marker.
+            const auto text_x = marker_width (font_height);
+            if (text_x > 0.0f)
+                canvas.text (std::string { bullet_params.marker }, text_font, bullet_params.justification, 0.0f, 0.0f, text_x, height());
+
+            auto* stored_text = canvas.getText (std::string { bullet_params.text },
+                                                text_font,
                                                 bullet_params.justification);
             stored_text->setMultiLine (true);
-            auto&& text_block = canvas.getTextBlock (stored_text, 0.0f, 0.0f, width(), height());
+            auto&& text_block = canvas.getTextBlock (stored_text, text_x, 0.0f, width() - text_x, height());
 
             if (bullet_params.flags & BULLET_UNDERLINE)
             {
@@ -160,12 +188,22 @@ struct Bullet_List : Content_Frame
                 bullet_params[idx].text_color = bullet_list_params.text_color;
             if (bullet_params[idx].font_height.amount == 0.0f)
                 bullet_params[idx].font_height = bullet_list_params.font_height;
+            if (bullet_params[idx].marker.empty())
+                bullet_params[idx].marker = marker_for_indent (bullet_params[idx].indent);
             bullets[idx] = default_params.frame_allocator->allocate<Bullet> (default_params,
                                                                              bullet_params[idx],
                                                                              bullet_list_params.animate);
             bullets[idx]->parent = this;
             addChild (bullets[idx]);
         }
+    }
+
+    std::string_view marker_for_indent (int indent) const
+    {
+        const auto& markers = bullet_list_params.markers;
+        if (markers.empty())
+            return "•";
+        return markers[std::min ((size_t) std::max (indent, 0), markers.size() - 1)];
     }
 
     void draw (visage::Canvas& canvas) override
@@ -188,8 +226,10 @@ struct Bullet_List : Content_Frame
         {
             const auto x = indent_x * bullet->bullet_params.indent + pad_x;
             const auto font_height = compute_dim (bullet->bullet_params.font_height, *default_params.slideshow_frame);
-            const auto height = font_height + pad_y;
-            bullet->setBounds (x, y, width() - 2 * pad_x, height);
+            const auto bullet_width = width() - x - pad_x;
+            const auto extra_lines = bullet->line_count (font_height, bullet_width) - 1;
+            const auto height = font_height + pad_y + float (extra_lines) * font (default_params, font_height).lineHeight();
+            bullet->setBounds (x, y, bullet_width, height);
             y += height + compute_dim (bullet->bullet_params.y_pad, *default_params.slideshow_frame);
         }
     }

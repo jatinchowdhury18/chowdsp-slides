@@ -76,6 +76,14 @@ slides = [
                         text = "sub-sub-bullet point #1"
                         indent = 2
                     },
+                    {
+                        text = "sub-sub-bullet point #2, this one should be multi-line"
+                        indent = 2
+                    },
+                    {
+                        text = "sub-sub-bullet point #2, this one should be even more lines, like maybe 3? but I guess I'll have to make it longer..."
+                        indent = 2
+                    },
                 ]
             },
 

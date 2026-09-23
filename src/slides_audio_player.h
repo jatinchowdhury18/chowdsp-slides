@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <visage/widgets.h>
 
@@ -81,8 +83,10 @@ struct Audio_Player : Content_Frame
 
     ma_sound sound {};
 
-    static constexpr size_t thumbs_count = 64;
-    std::array<std::array<float, 2>, thumbs_count> thumbs {};
+    // Peak envelope of the file, normalized so the loudest bin is 1. Bars are
+    // drawn by grouping these bins, so the bar count can follow the width.
+    static constexpr size_t thumbs_count = 512;
+    std::array<float, thumbs_count> thumbs {};
 
     visage::EventTimer timer {};
 
@@ -140,30 +144,20 @@ struct Audio_Player : Content_Frame
         assert (frames_read == frame_count);
 
         const auto frames_per_thumb = frame_count / thumbs_count;
-
+        float max_peak = 0.0f;
         for (size_t thumb_idx = 0; thumb_idx < thumbs_count; ++thumb_idx)
         {
-            thumbs[thumb_idx][0] = thumbs[thumb_idx][1] = 0.0f;
-            for (size_t sample_idx = thumb_idx * frames_per_thumb;
-                 sample_idx < (thumb_idx + 1) * frames_per_thumb;
-                 sample_idx++)
-            {
-                thumbs[thumb_idx][0] += std::abs (data_interleaved[sample_idx * channels]);
-                if (channels > 1)
-                    thumbs[thumb_idx][1] += std::abs (data_interleaved[sample_idx * channels + 1]);
-            }
-
-            const auto frame_avg = [frames_per_thumb] (float sum)
-            {
-                return std::min (8.0f * sum / (float) frames_per_thumb, 1.0f);
-            };
-
-            thumbs[thumb_idx][0] = frame_avg (thumbs[thumb_idx][0]);
-            if (channels > 1)
-                thumbs[thumb_idx][1] = frame_avg (thumbs[thumb_idx][1]);
-            else
-                thumbs[thumb_idx][1] = thumbs[thumb_idx][0];
+            float peak = 0.0f;
+            for (size_t frame_idx = thumb_idx * frames_per_thumb; frame_idx < (thumb_idx + 1) * frames_per_thumb; ++frame_idx)
+                for (size_t ch = 0; ch < channels; ++ch)
+                    peak = std::max (peak, std::abs (data_interleaved[frame_idx * channels + ch]));
+            thumbs[thumb_idx] = peak;
+            max_peak = std::max (max_peak, peak);
         }
+
+        // a gentle curve keeps quieter passages visible next to the loudest ones
+        for (auto& thumb : thumbs)
+            thumb = max_peak > 0.0f ? std::pow (thumb / max_peak, 0.7f) : 0.0f;
 
         free (data_interleaved);
         ma_decoder_uninit (&decoder);
@@ -233,44 +227,40 @@ struct Audio_Player : Content_Frame
                          0.2f * height());
         }
 
-        // thumbnail
+        // thumbnail: pill-shaped bars, mirrored about the centre line
         float cursor, length;
         ma_sound_get_cursor_in_seconds (&sound, &cursor);
         ma_sound_get_length_in_seconds (&sound, &length);
-        const auto thumbs_progress = static_cast<size_t> ((float) thumbs_count * cursor / length);
-        const auto thumbs_progress_frac = ((float) thumbs_count * cursor / length) - (float) thumbs_progress;
+        const auto progress = length > 0.0f ? cursor / length : 0.0f;
 
-        const auto pad = 0.04f * width();
-        const auto h = 0.72f * height();
-        const auto spacing = width() * 0.005f;
-        const auto thumb_width = ((width() - 2.0f * pad) / (float) thumbs_count) - spacing;
-        auto x = pad;
-        const auto y_off = has_label ? (0.06f * height()) : 0.0f;
-        for (size_t thumb_idx = 0; thumb_idx < thumbs_count; ++thumb_idx)
+        const auto pad_x = 0.04f * width();
+        const auto top = 0.1f * height();
+        const auto h = (has_label ? 0.66f : 0.78f) * height();
+        const auto pitch = std::max (3.0f, 0.004f * default_params.slideshow_frame->width());
+        const auto num_bars = std::max ((size_t) 8, std::min (thumbs_count, (size_t) ((width() - 2.0f * pad_x) / pitch)));
+        const auto bar_pitch = (width() - 2.0f * pad_x) / (float) num_bars;
+        const auto bar_width = 0.6f * bar_pitch;
+        const auto min_height = std::min (bar_width, 0.04f * h);
+
+        for (size_t bar_idx = 0; bar_idx < num_bars; ++bar_idx)
         {
-            canvas.setColor (visage::Color { thumb_idx >= thumbs_progress ? 0xff4c4f52 : 0xff9978ee }
-                                 .withAlpha (alpha));
+            float level = 0.0f;
+            for (auto i = bar_idx * thumbs_count / num_bars; i < (bar_idx + 1) * thumbs_count / num_bars; ++i)
+                level = std::max (level, thumbs[i]);
 
-            const auto thumb_height_above = 0.5f * h * thumbs[thumb_idx][0];
-            const auto thumb_height_below = 0.5f * h * thumbs[thumb_idx][1];
-            canvas.roundedRectangle (x,
-                                     pad + 0.5f * h - thumb_height_above - y_off,
-                                     thumb_width,
-                                     thumb_height_above + thumb_height_below,
-                                     spacing);
+            const auto bar_height = std::max (min_height, level * h);
+            const auto x = pad_x + (float) bar_idx * bar_pitch + 0.5f * (bar_pitch - bar_width);
+            const auto y = top + 0.5f * (h - bar_height);
 
-            if (thumb_idx == thumbs_progress)
+            // bars fill in as playback passes them, fading across the current bar
+            const auto bar_progress = std::clamp (progress * (float) num_bars - (float) bar_idx, 0.0f, 1.0f);
+            canvas.setColor (visage::Color { 0xff4c4f52 }.withAlpha (alpha));
+            canvas.roundedRectangle (x, y, bar_width, bar_height, 0.5f * bar_width);
+            if (bar_progress > 0.0f)
             {
-                canvas.setColor (visage::Color { 0xff9978ee }
-                                     .withAlpha (alpha * thumbs_progress_frac));
-                canvas.roundedRectangle (x,
-                                         pad + 0.5f * h - thumb_height_above - y_off,
-                                         thumb_width,
-                                         thumb_height_above + thumb_height_below,
-                                         spacing);
+                canvas.setColor (visage::Color { 0xff9978ee }.withAlpha (alpha * bar_progress));
+                canvas.roundedRectangle (x, y, bar_width, bar_height, 0.5f * bar_width);
             }
-
-            x += thumb_width + spacing;
         }
     }
 };

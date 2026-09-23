@@ -51,6 +51,7 @@ function(slides_app target target_dir)
         )
 
         set_target_properties(${target} PROPERTIES
+            LINK_DEPENDS ${target_dir}/slides.html
             SUFFIX ".html"
             OUTPUT_NAME "index"
             RUNTIME_OUTPUT_DIRECTORY "${target_dir}/web"
