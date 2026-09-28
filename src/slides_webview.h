@@ -1,5 +1,8 @@
 #pragma once
 
+#include <atomic>
+#include <memory>
+
 #include "slides_content.h"
 
 #if CHOWDSP_SLIDES_NATIVE
@@ -63,6 +66,11 @@ struct Web_View : Content_Frame
     Web_View_Params web_view_params {};
     std::unique_ptr<choc::ui::WebView> webview {};
 
+    // webviewIsReady below fires asynchronously and captures `this`. If a hot
+    // reload deletes this Web_View before that callback runs, it would
+    // otherwise touch freed memory. This flag lets the callback bail out.
+    std::shared_ptr<std::atomic<bool>> alive = std::make_shared<std::atomic<bool>> (true);
+
 #if CHOWDSP_SLIDES_MACOS
     id child_window {};
 #endif
@@ -79,8 +87,11 @@ struct Web_View : Content_Frame
         options.enableDebugMode = false;
         options.enableDebugInspector = false; // Set to true to open dev tools
         options.transparentBackground = true;
-        options.webviewIsReady = [this] (choc::ui::WebView& view)
+        options.webviewIsReady = [this, alive = alive] (choc::ui::WebView& view)
         {
+            if (! *alive)
+                return;
+
             if (! web_view_params.url.empty())
             {
                 view.navigate (web_view_params.url);
@@ -159,6 +170,8 @@ struct Web_View : Content_Frame
 
     ~Web_View() override
     {
+        *alive = false;
+
         if (webview)
         {
 #if CHOWDSP_SLIDES_MACOS

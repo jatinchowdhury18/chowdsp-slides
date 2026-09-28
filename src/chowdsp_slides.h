@@ -1,9 +1,11 @@
 #pragma once
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 
 #include "slides_allocator.h"
+#include "slides_diagnostics.h"
 
 #include "slides_background_task.h"
 
@@ -46,7 +48,57 @@ struct Slide_Params
     Slide_Text title {};
     std::span<Slide_Text> text {};
     std::span<Content_Frame*> content {};
+
+    std::span<size_t> step_order {};
 };
+
+// Resolves step_order entries (ids or indices) against content.
+static std::span<size_t> gon_step_order (Gon_Ref gon, std::span<Content_Frame*> content, Allocator& allocator)
+{
+    if (gon.size() == 0)
+        return {};
+
+    auto order = allocator.make_span<size_t> (gon.size());
+    size_t idx = 0;
+    for (const auto& g : gon)
+    {
+        if (g.type == GonObject::FieldType::STRING)
+        {
+            const auto id = g.StringView ({});
+            const auto it = std::find_if (content.begin(), content.end(), [id] (const Content_Frame* frame)
+                                          { return frame->frame_params.id == id; });
+            if (it == content.end())
+            {
+                global_diagnostics().warn ("step_order references unknown id '" + std::string { id } + "', using default step order");
+                return {};
+            }
+            order[idx++] = (size_t) std::distance (content.begin(), it);
+        }
+        else
+        {
+            const auto index = (size_t) g.Int (0);
+            if (index >= content.size())
+            {
+                global_diagnostics().warn ("step_order index " + std::to_string (index) + " is out of range, using default step order");
+                return {};
+            }
+            order[idx++] = index;
+        }
+    }
+
+    for (size_t content_idx = 0; content_idx < content.size(); ++content_idx)
+    {
+        const auto expected = std::max<size_t> (content[content_idx]->animation_steps, 1);
+        const auto actual = (size_t) std::count (order.begin(), order.end(), content_idx);
+        if (actual != 0 && actual != expected)
+        {
+            global_diagnostics().warn ("step_order uses content frame " + std::to_string (content_idx) + " " + std::to_string (actual) + " time(s), expected " + std::to_string (expected) + ", using default step order");
+            return {};
+        }
+    }
+
+    return order;
+}
 
 static std::span<Content_Frame*> gon_content_array (Gon_Ref gon, const Default_Params& params)
 {
@@ -56,7 +108,8 @@ static std::span<Content_Frame*> gon_content_array (Gon_Ref gon, const Default_P
     for (const auto& g : gon)
     {
         const auto type = g["type"].String ({});
-        const auto frame_params = gon_content_frame_params (g["frame_params"]);
+        auto frame_params = gon_content_frame_params (g["frame_params"]);
+        frame_params.id = params.frame_allocator->copy_string (g["id"].StringView ({}));
         if (type == "bullet_list")
         {
             content[idx++] = params.frame_allocator->allocate<Bullet_List> (
@@ -139,13 +192,18 @@ static void merge_params (Slide_Params& slide_params, const Default_Params& defa
 
 static Slide_Params gon_slide_params (Gon_Ref gon, const Default_Params& default_params)
 {
+    // content has to exist before step_order can resolve ids/indices against it.
+    auto content = gon_content_array (gon["content"], default_params);
+    auto step_order = gon_step_order (gon["step_order"], content, *default_params.frame_allocator);
+
     Slide_Params params {
         .background_image = gon_file (gon["background_image"], *default_params.file_allocator),
         .background_color = gon["background_color"].UInt ({}),
         .style = gon_slide_style (gon["style"]),
         .title = gon_slide_text (gon["title"], default_params),
         .text = gon_text_array (gon["text"], default_params),
-        .content = gon_content_array (gon["content"], default_params),
+        .content = content,
+        .step_order = step_order,
     };
     merge_params (params, default_params);
     return params;
@@ -157,6 +215,7 @@ struct Slide : visage::Frame
     size_t animation_frames {};
     size_t active_animation_frame {};
     std::span<Content_Frame*> frames_to_animate {};
+    size_t active_ordered_step {};
 
     Slide (const Default_Params& default_params, Slide_Params slide_params)
         : params { slide_params }
@@ -176,8 +235,46 @@ struct Slide : visage::Frame
         frames_to_animate = frames_to_animate.subspan (0, frame_to_animate_count);
     }
 
+    // True if step_order[step] is the first step that touches its content frame.
+    bool is_first_ordered_step (size_t step) const
+    {
+        for (size_t i = 0; i < step; ++i)
+            if (params.step_order[i] == params.step_order[step])
+                return false;
+        return true;
+    }
+
+    bool previous_ordered_step()
+    {
+        if (active_ordered_step == 0)
+            return false;
+
+        active_ordered_step--;
+        auto* frame = params.content[params.step_order[active_ordered_step]];
+        frame->previous_step();
+        if (is_first_ordered_step (active_ordered_step))
+            frame->hide();
+        return true;
+    }
+
+    bool next_ordered_step()
+    {
+        if (active_ordered_step == params.step_order.size())
+            return false;
+
+        auto* frame = params.content[params.step_order[active_ordered_step]];
+        if (is_first_ordered_step (active_ordered_step))
+            frame->show();
+        frame->next_step();
+        active_ordered_step++;
+        return true;
+    }
+
     bool previous_step()
     {
+        if (! params.step_order.empty())
+            return previous_ordered_step();
+
         if (active_animation_frame == 0)
             return false;
 
@@ -194,6 +291,9 @@ struct Slide : visage::Frame
 
     bool next_step()
     {
+        if (! params.step_order.empty())
+            return next_ordered_step();
+
         if (animation_frames == 0)
             return false;
 
@@ -386,6 +486,9 @@ struct Slideshow : visage::Frame
 
     void update_slide_metadata()
     {
+        if (slides.empty())
+            return;
+
         slide_metadata.slide_idx = active_slide;
         slide_metadata.slide_title = slides[active_slide]->params.title.text;
         slide_metadata.slide_color = slides[active_slide]->params.background_color;
@@ -414,13 +517,35 @@ struct Slideshow : visage::Frame
 
     void set_state (size_t new_active_slide, size_t start_animation_steps)
     {
+        animation_step = 0;
+
+        if (slides.empty())
+        {
+            global_diagnostics().warn ("Hot reload: reloaded deck has no slides");
+            active_slide = 0;
+            return;
+        }
+
+        if (new_active_slide >= slides.size())
+        {
+            global_diagnostics().warn ("Hot reload: saved slide " + std::to_string (new_active_slide) + " no longer exists (deck now has " + std::to_string (slides.size()) + " slides), returning to the first slide");
+            new_active_slide = 0;
+            start_animation_steps = 0;
+        }
+
         active_slide = new_active_slide;
         for (size_t slide_idx = 0; slide_idx < slides.size(); ++slide_idx)
             slides[slide_idx]->setVisible (slide_idx == active_slide);
 
         for (size_t step = 0; step < start_animation_steps; ++step)
             next_step();
-        assert (start_animation_steps == animation_step);
+
+        // The reloaded slide may have fewer steps than where we were (e.g. an
+        // edited step_order or removed content), so replay can legitimately
+        // fall short. Landing somewhere valid beats asserting/crashing.
+        if (animation_step != start_animation_steps)
+            global_diagnostics().warn ("Hot reload: could not fully restore position on slide " + std::to_string (active_slide) + " (landed on step " + std::to_string (animation_step) + " instead of " + std::to_string (start_animation_steps) + ")");
+
         update_slide_metadata();
     }
 

@@ -39,9 +39,12 @@ slides = [
             justification = "Left"
         }
 
+        step_order = ["bullets", "bullets", "bullets", "audio", "eq", "eq", "bullets", "bullets", "bullets", "bullets", "bullets"]
+
         content = [
             {
                 type = "bullet_list"
+                id = "bullets"
 
                 frame_params = {
                     dims = ["2_vw", "10_vh", "47_vw", "90_vh"]
@@ -89,6 +92,7 @@ slides = [
 
             {
                 type = "audio_player"
+                id = "audio"
 
                 frame_params = {
                     dims = ["51_vw", "10_vh", "47_vw", "25_vh"]
@@ -101,6 +105,7 @@ slides = [
 
             {
                 type = "equation"
+                id = "eq"
 
                 frame_params = {
                     dims = ["51_vw", "40_vh", "47_vw", "50_vh"]

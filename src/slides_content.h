@@ -10,6 +10,10 @@ struct Content_Frame_Params
     Dims dims {};
     float animation_speed { 0.5f };
     bool animate = true;
+
+    // Optional name for this content frame, so step_order can refer to it
+    // without relying on its position in the content array.
+    std::string_view id {};
 };
 
 static Content_Frame_Params gon_content_frame_params (Gon_Ref gon)

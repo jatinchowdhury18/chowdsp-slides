@@ -14,13 +14,22 @@ namespace chowdsp::slides
 {
 static Slideshow* make_slides (visage::Window* window, bool instant_animations = false)
 {
+    global_diagnostics().clear();
     try
     {
         return new Slideshow { GonObject::Load ("slides.gon"), window, instant_animations };
     }
     catch (const std::exception& e)
     {
-        std::cout << "ERROR: " << e.what() << '\n';
+        global_diagnostics().warn (std::string { "Failed to load slides: " } + e.what());
+    }
+    catch (const std::string& e)
+    {
+        global_diagnostics().warn ("Failed to load slides: " + e);
+    }
+    catch (...)
+    {
+        global_diagnostics().warn ("Failed to load slides: unknown error");
     }
     return {};
 }
@@ -47,7 +56,6 @@ struct Run_Opts
 
     // hot-reloading stuff
     bool hot_reload {};
-    Reload_State hot_reload_state {};
     visage::EventTimer reload_timer {};
     long long last_update_time = visage::time::milliseconds();
 
@@ -128,31 +136,63 @@ void slides_runner (Run_Opts run_opts)
     }
 
     visage::ApplicationWindow window;
-    window.onDraw() = [] (visage::Canvas& canvas)
+    Slideshow* slides {};
+
+    window.onDraw() = [&slides] (visage::Canvas& canvas)
     {
         // canvas.setColor (0xff33393f);
         canvas.setColor (0xff000000);
         canvas.fill (0, 0, canvas.width(), canvas.height());
+
+        auto& diagnostics = global_diagnostics();
+        if (diagnostics.messages.empty())
+            return;
+
+        const auto pad = 10.0f;
+        const auto banner_width = std::min (canvas.width() * 0.6f, 700.0f);
+        const auto banner_height = 70.0f;
+        const auto x = pad;
+        const auto y = canvas.height() - banner_height - pad;
+
+        canvas.setColor (visage::Color { 0xffcc2222 });
+        canvas.roundedRectangle (x, y, banner_width, banner_height, 6.0f);
+
+        if (slides != nullptr && slides->params.font != nullptr)
+        {
+            canvas.setColor (visage::Color { 0xffffffff });
+            canvas.text (diagnostics.messages.back(),
+                         font (slides->params, 14.0f),
+                         visage::Font::kTopLeft,
+                         x + pad,
+                         y + pad,
+                         banner_width - 2.0f * pad,
+                         banner_height - 2.0f * pad);
+        }
     };
     window.showMaximized();
 
-    Slideshow* slides {};
-    auto load_slides = [&window, &run_opts, &slides]()
+    auto load_slides = [&window, &slides]()
     {
-        if (slides != nullptr)
+        const Reload_State state = slides != nullptr
+                                       ? Reload_State { slides->active_slide, slides->animation_step }
+                                       : Reload_State {};
+
+        auto* new_slides = make_slides (window.get_window());
+        if (new_slides == nullptr)
         {
-            run_opts.hot_reload_state = { slides->active_slide, slides->animation_step };
-            window.removeChild (slides);
-            delete slides;
-            slides = nullptr;
+            // Keep the previous (working) deck on screen; the diagnostics
+            // banner in window.onDraw() surfaces why the reload failed.
+            return;
         }
 
-        slides = make_slides (window.get_window());
-        if (slides == nullptr)
-            return;
+        if (slides != nullptr)
+        {
+            window.removeChild (slides);
+            delete slides;
+        }
+        slides = new_slides;
 
-        slides->set_state (run_opts.hot_reload_state.slide_idx,
-                           run_opts.hot_reload_state.animation_step);
+        slides->set_state (state.slide_idx, state.animation_step);
         window.addChild (slides);
 
         window.onResize() = [&window, slides]
