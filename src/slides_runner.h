@@ -58,6 +58,10 @@ struct Run_Opts
     // --export-pdf out.pdf renders every slide fully revealed into one PDF, then exits
     std::string_view pdf_path {};
 
+    // Desktop builds open full-screen unless --windowed is passed.
+    bool windowed {};
+    visage::EventTimer full_screen_timer {};
+
     // hot-reloading stuff
     bool hot_reload {};
     visage::EventTimer reload_timer {};
@@ -84,6 +88,49 @@ static bool needs_reload (Run_Opts& run_opts)
 #else
 static bool needs_reload (Run_Opts&) { return false; }
 #endif
+
+static void enter_full_screen ([[maybe_unused]] visage::Window* window)
+{
+    if (window == nullptr)
+        return;
+
+#if CHOWDSP_SLIDES_MACOS
+    using namespace choc::objc;
+    auto* ns_window = (CHOC_OBJC_CAST_BRIDGED id) window->windowHandle();
+    if (ns_window == nullptr)
+        return;
+
+    // NSWindowStyleMaskFullScreen: already there (e.g. macOS restored the previous session full-screen).
+    constexpr unsigned long style_mask_full_screen = 1ul << 14;
+    if ((call<unsigned long> (ns_window, "styleMask") & style_mask_full_screen) != 0)
+        return;
+
+    // NSWindowCollectionBehaviorFullScreenPrimary, so the window gets its own full-screen space.
+    constexpr unsigned long full_screen_primary = 1ul << 7;
+    call<void> (ns_window, "setCollectionBehavior:", call<unsigned long> (ns_window, "collectionBehavior") | full_screen_primary);
+    call<void> (ns_window, "toggleFullScreen:", (id) nullptr);
+#elif CHOWDSP_SLIDES_WINDOWS
+    auto* hwnd = static_cast<HWND> (window->windowHandle());
+    if (hwnd == nullptr)
+        return;
+
+    // Borderless window covering the whole monitor that the window is currently on.
+    MONITORINFO monitor_info { sizeof (MONITORINFO) };
+    if (! GetMonitorInfo (MonitorFromWindow (hwnd, MONITOR_DEFAULTTONEAREST), &monitor_info))
+        return;
+
+    const auto style = GetWindowLongPtr (hwnd, GWL_STYLE);
+    SetWindowLongPtr (hwnd, GWL_STYLE, (style & ~(LONG_PTR) (WS_CAPTION | WS_THICKFRAME)) | WS_POPUP);
+    const auto& rect = monitor_info.rcMonitor;
+    SetWindowPos (hwnd,
+                  HWND_TOP,
+                  rect.left,
+                  rect.top,
+                  rect.right - rect.left,
+                  rect.bottom - rect.top,
+                  SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+#endif
+}
 
 // Moves the deck to the given slide and step, then draws it so that a screenshot shows the result.
 static void render_slide_state (visage::ApplicationEditor& editor, Slideshow& slides, size_t slide_idx, size_t steps)
@@ -288,6 +335,20 @@ void slides_runner (Run_Opts run_opts)
         delete slides;
         return true;
     };
+
+#if CHOWDSP_SLIDES_NATIVE
+    // Going full-screen needs the event loop to be running (at least on macOS), so do it on the first timer tick.
+    if (! run_opts.windowed)
+    {
+        run_opts.full_screen_timer.onTimerCallback() = [&run_opts, &window]
+        {
+            run_opts.full_screen_timer.stopTimer();
+            enter_full_screen (window.get_window());
+        };
+        run_opts.full_screen_timer.startTimer (1);
+    }
+#endif
+
     // window.showMaximized();
     window.runEventLoop();
 }

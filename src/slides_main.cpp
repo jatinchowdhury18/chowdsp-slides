@@ -88,6 +88,10 @@ int WINAPI WinMain (_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
         if (arg == "--reload")
             run_opts.hot_reload = true;
 
+        // Desktop builds start full-screen by default. --windowed opens a regular maximized window instead.
+        if (arg == "--windowed")
+            run_opts.windowed = true;
+
         // --render <slide>:<steps|end>:<out.png>, where <slide> is the footer number
         if (arg == "--render" && i + 1 < argc)
         {
