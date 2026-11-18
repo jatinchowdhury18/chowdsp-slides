@@ -102,6 +102,11 @@ struct Content_Frame : visage::Frame
         return animation.value();
     }
 
+    // Called when rendering windowlessly (--render, --export-pdf), once the slide is in the state that will be
+    // captured and before it is drawn. Frames whose content comes from outside the canvas (e.g. web views) can
+    // use this to prepare it. This may block for a while.
+    virtual void prepare_for_render() {}
+
     virtual bool previous_step()
     {
         return false;

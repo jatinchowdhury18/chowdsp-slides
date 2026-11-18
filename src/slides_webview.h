@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "slides_content.h"
+#include "slides_image.h"
 
 #if CHOWDSP_SLIDES_NATIVE
 #include "third_party/choc/choc/gui/choc_WebView.h"
@@ -73,42 +74,23 @@ struct Web_View : Content_Frame
 
 #if CHOWDSP_SLIDES_MACOS
     id child_window {};
+
+    // When rendering windowless, the web view is snapshotted once and the result is drawn like an image.
+    id snapshot_png {}; // retained NSData holding the encoded snapshot
+    visage::ImageAtlas::PackedImage snapshot_image { {} };
 #endif
+    bool has_snapshot {};
 
     Web_View (const Default_Params& def_params, Content_Frame_Params frame_params, Web_View_Params params)
         : Content_Frame { def_params, frame_params },
           web_view_params { params }
     {
         // Web views live in their own native window, so there's nothing to attach to when rendering windowless.
+        // In that case prepare_for_render() snapshots the page instead (where supported).
         if (default_params.window == nullptr)
             return;
 
-        choc::ui::WebView::Options options;
-        options.enableDebugMode = false;
-        options.enableDebugInspector = false; // Set to true to open dev tools
-        options.transparentBackground = true;
-        options.webviewIsReady = [this, alive = alive] (choc::ui::WebView& view)
-        {
-            if (! *alive)
-                return;
-
-            if (! web_view_params.url.empty())
-            {
-                view.navigate (web_view_params.url);
-            }
-            else if (! web_view_params.html.empty())
-            {
-                view.setHTML (web_view_params.html);
-            }
-            else if (web_view_params.html_file != nullptr)
-            {
-                const auto html_source = std::string_view { (const char*) web_view_params.html_file->data,
-                                                            web_view_params.html_file->size };
-                view.setHTML (std::string { html_source });
-            }
-        };
-
-        webview = std::make_unique<choc::ui::WebView> (options);
+        webview = std::make_unique<choc::ui::WebView> (make_options());
 
         if (webview != nullptr)
         {
@@ -168,9 +150,43 @@ struct Web_View : Content_Frame
         visibilityChanged();
     }
 
+    choc::ui::WebView::Options make_options()
+    {
+        choc::ui::WebView::Options options;
+        options.enableDebugMode = false;
+        options.enableDebugInspector = false; // Set to true to open dev tools
+        options.transparentBackground = true;
+        options.webviewIsReady = [this, alive = alive] (choc::ui::WebView& view)
+        {
+            if (! *alive)
+                return;
+
+            if (! web_view_params.url.empty())
+            {
+                view.navigate (web_view_params.url);
+            }
+            else if (! web_view_params.html.empty())
+            {
+                view.setHTML (web_view_params.html);
+            }
+            else if (web_view_params.html_file != nullptr)
+            {
+                const auto html_source = std::string_view { (const char*) web_view_params.html_file->data,
+                                                            web_view_params.html_file->size };
+                view.setHTML (std::string { html_source });
+            }
+        };
+        return options;
+    }
+
     ~Web_View() override
     {
         *alive = false;
+
+#if CHOWDSP_SLIDES_MACOS
+        if (snapshot_png != nullptr)
+            choc::objc::call<void> (snapshot_png, "release");
+#endif
 
         if (webview)
         {
@@ -180,9 +196,10 @@ struct Web_View : Content_Frame
 
             if (child_window)
             {
-                // Remove child window from main window
-                if (auto* main_window = (CHOC_OBJC_CAST_BRIDGED id) default_params.window->windowHandle())
-                    choc::objc::call<void> (main_window, "removeChildWindow:", child_window);
+                // Remove child window from main window (there isn't one when rendering windowless)
+                if (default_params.window != nullptr)
+                    if (auto* main_window = (CHOC_OBJC_CAST_BRIDGED id) default_params.window->windowHandle())
+                        choc::objc::call<void> (main_window, "removeChildWindow:", child_window);
 
                 // Close and release the child window
                 choc::objc::call<void> (child_window, "orderOut:", nullptr);
@@ -275,10 +292,194 @@ struct Web_View : Content_Frame
 #endif
     }
 
+    // Draws what stands in for the web view when rendering windowless: the snapshot if we managed to take one,
+    // and otherwise a neutral placeholder (which is all that's supported on platforms without snapshots).
+    void draw_for_render (visage::Canvas& canvas, float alpha)
+    {
+#if CHOWDSP_SLIDES_MACOS
+        if (has_snapshot)
+        {
+            canvas.setColor (visage::Color { 0xffffffff }.withAlpha (alpha));
+            const std::lock_guard lock { default_params.image_atlas->mutex };
+            canvas.addShape (visage::ImageRefWrapper (canvas.state()->clamp,
+                                                      canvas.state()->brush,
+                                                      canvas.state()->x,
+                                                      canvas.state()->y,
+                                                      canvas.pixels (width()),
+                                                      canvas.pixels (height()),
+                                                      snapshot_image,
+                                                      default_params.image_atlas));
+            return;
+        }
+#endif
+
+        canvas.setColor (visage::Color { 0xff454c54 }.withAlpha (alpha));
+        canvas.roundedRectangle (0.0f, 0.0f, width(), height(), 6.0f);
+
+        const auto is_remote_url = ! web_view_params.url.empty() && ! web_view_params.url.starts_with ("file://");
+        const auto label = is_remote_url ? "Web content: " + web_view_params.url : std::string { "Web content" };
+        canvas.setColor (default_params.text_color.withAlpha (alpha * 0.7f));
+        canvas.text (label,
+                     font (default_params, std::clamp (height() * 0.06f, 12.0f, 28.0f)),
+                     visage::Font::kCenter,
+                     0.0f,
+                     0.0f,
+                     width(),
+                     height());
+    }
+
+#if CHOWDSP_SLIDES_MACOS
+    static constexpr double load_timeout_seconds = 20.0;
+    static constexpr double settle_seconds = 1.5; // extra time for scripts and late resources after the load finishes
+    static constexpr double snapshot_timeout_seconds = 10.0;
+
+    static void run_loop_for (double seconds)
+    {
+        using namespace choc::objc;
+        auto* loop = callClass<id> ("NSRunLoop", "currentRunLoop");
+        call<void> (loop, "runUntilDate:", callClass<id> ("NSDate", "dateWithTimeIntervalSinceNow:", seconds));
+    }
+
+    void tear_down_snapshot_view()
+    {
+        using namespace choc::objc;
+        if (webview != nullptr)
+            if (auto* view = (CHOC_OBJC_CAST_BRIDGED id) webview->getViewHandle())
+                call<void> (view, "removeFromSuperview");
+
+        if (child_window != nullptr)
+        {
+            call<void> (child_window, "orderOut:", nullptr);
+            call<void> (child_window, "release");
+            child_window = nullptr;
+        }
+        webview.reset();
+    }
+
+    // Loads the page in a hidden window, waits for it, and stores a PNG snapshot. Returns false on any failure.
+    bool capture_snapshot()
+    {
+        using namespace choc::objc;
+        CHOC_AUTORELEASE_BEGIN
+
+        const auto width_px = nativeWidth();
+        const auto height_px = nativeHeight();
+        if (width_px <= 0 || height_px <= 0)
+            return false;
+
+        // WKWebView needs an NSApplication and a running run loop, neither of which exist when rendering windowless.
+        call<void> (getSharedNSApplication(), "setActivationPolicy:", (long) 1); // NSApplicationActivationPolicyAccessory
+
+        webview = std::make_unique<choc::ui::WebView> (make_options());
+        if (! webview->loadedOK())
+        {
+            webview.reset();
+            return false;
+        }
+
+        const auto scale = (choc::objc::CGFloat) dpiScale();
+        const choc::objc::CGRect view_frame { { 0, 0 }, { (choc::objc::CGFloat) width_px / scale, (choc::objc::CGFloat) height_px / scale } };
+        auto* view = (CHOC_OBJC_CAST_BRIDGED id) webview->getViewHandle();
+
+        child_window = call<id> (callClass<id> ("NSWindow", "alloc"),
+                                 "initWithContentRect:styleMask:backing:defer:",
+                                 view_frame,
+                                 (unsigned long) 0, // borderless
+                                 (unsigned long) 2, // NSBackingStoreBuffered
+                                 false);
+        call<void> (child_window, "setReleasedWhenClosed:", false);
+        call<void> (child_window, "setOpaque:", false);
+        call<void> (child_window, "setBackgroundColor:", callClass<id> ("NSColor", "clearColor"));
+        call<void> (child_window, "setAlphaValue:", (choc::objc::CGFloat) 0);
+        call<void> (child_window, "setIgnoresMouseEvents:", true);
+        call<void> (view, "setFrame:", view_frame);
+        call<void> (child_window, "setContentView:", view);
+        call<void> (child_window, "orderFront:", nullptr);
+
+        // The page was told to load as soon as the web view was created. Give that a moment to start, then wait
+        // for it to finish, and then a little longer for anything that renders after the load event.
+        run_loop_for (0.1);
+        for (auto waited = 0.1; call<bool> (view, "isLoading") && waited < load_timeout_seconds; waited += 0.05)
+            run_loop_for (0.05);
+        if (call<bool> (view, "isLoading"))
+        {
+            std::cout << "WARNING: web view timed out while loading\n";
+            tear_down_snapshot_view();
+            return false;
+        }
+        run_loop_for (settle_seconds);
+
+        struct Snapshot_State
+        {
+            bool done {};
+            id image {};
+        } state;
+        auto* state_ptr = &state;
+        call<void> (view,
+                    "takeSnapshotWithConfiguration:completionHandler:",
+                    (id) nullptr,
+                    ^(id image, id)
+                    {
+                        if (image != nullptr)
+                            call<id> (image, "retain");
+                        state_ptr->image = image;
+                        state_ptr->done = true;
+                    });
+        for (auto waited = 0.0; ! state.done && waited < snapshot_timeout_seconds; waited += 0.05)
+            run_loop_for (0.05);
+
+        tear_down_snapshot_view();
+        if (state.image == nullptr)
+        {
+            std::cout << "WARNING: web view snapshot failed\n";
+            return false;
+        }
+
+        // Re-encode as PNG, since that's what the image atlas knows how to load.
+        auto* tiff = call<id> (state.image, "TIFFRepresentation");
+        auto* rep = callClass<id> ("NSBitmapImageRep", "imageRepWithData:", tiff);
+        auto* png = rep != nullptr ? call<id> (rep,
+                                               "representationUsingType:properties:",
+                                               (unsigned long) 4, // NSBitmapImageFileTypePNG
+                                               callClass<id> ("NSDictionary", "dictionary"))
+                                   : (id) nullptr;
+        call<void> (state.image, "release");
+        if (png == nullptr)
+            return false;
+
+        snapshot_png = call<id> (png, "retain");
+        const visage::Image image { call<const unsigned char*> (snapshot_png, "bytes"),
+                                    (int) call<unsigned long> (snapshot_png, "length"),
+                                    width_px,
+                                    height_px };
+        const std::lock_guard lock { default_params.image_atlas->mutex };
+        snapshot_image = default_params.image_atlas->addImage (image);
+        return true;
+
+        CHOC_AUTORELEASE_END
+    }
+
+    void prepare_for_render() override
+    {
+        if (default_params.window != nullptr || has_snapshot)
+            return;
+
+        has_snapshot = capture_snapshot();
+        if (! has_snapshot)
+            std::cout << "WARNING: using a placeholder for a web view that could not be captured\n";
+    }
+#endif
+
     void draw (visage::Canvas& canvas) override
     {
         Content_Frame::draw (canvas);
         const auto alpha = fade_alpha();
+
+        if (default_params.window == nullptr)
+        {
+            draw_for_render (canvas, alpha);
+            return;
+        }
 
 #if CHOWDSP_SLIDES_MACOS
         if (webview != nullptr)

@@ -2,6 +2,7 @@
 
 #include "chowdsp_slides.h"
 #include "slides_dll.h"
+#include "slides_pdf.h"
 #include <filesystem>
 
 // If the slides directory contains custom_slides.h, pull it in automatically.
@@ -54,6 +55,9 @@ struct Run_Opts
     int render_width = 1600;
     int render_height = 900;
 
+    // --export-pdf out.pdf renders every slide fully revealed into one PDF, then exits
+    std::string_view pdf_path {};
+
     // hot-reloading stuff
     bool hot_reload {};
     visage::EventTimer reload_timer {};
@@ -81,15 +85,48 @@ static bool needs_reload (Run_Opts& run_opts)
 static bool needs_reload (Run_Opts&) { return false; }
 #endif
 
+// Moves the deck to the given slide and step, then draws it so that a screenshot shows the result.
+static void render_slide_state (visage::ApplicationEditor& editor, Slideshow& slides, size_t slide_idx, size_t steps)
+{
+    // Rewind the current slide so that it's in a clean state if we come back to it later.
+    auto* slide = slides.slides[slides.active_slide];
+    if (slides.active_slide != slide_idx || slides.animation_step > steps)
+    {
+        while (slide->previous_step())
+            slides.animation_step--;
+        slides.set_state (slide_idx, 0);
+        slide = slides.slides[slide_idx];
+    }
+
+    while (slides.animation_step < steps && slide->next_step())
+        slides.animation_step++;
+    slides.update_slide_metadata();
+
+    // Give content that lives outside the canvas (like web views) a chance to capture itself.
+    for (auto* frame : slide->params.content)
+        if (frame->isVisible())
+            frame->prepare_for_render();
+
+    // Animations are instant, but a frame still needs one draw to update and another to show the result.
+    for (int i = 0; i < 3; ++i)
+        editor.drawWindow();
+}
+
 static void render_slides (const Run_Opts& run_opts)
 {
     auto* slides = make_slides (nullptr, true);
     if (slides == nullptr)
         return;
 
+    // When exporting a PDF, match the page shape to the deck's aspect ratio (if it has one)
+    // so the pages don't get letterboxed.
+    auto render_height = run_opts.render_height;
+    if (! run_opts.pdf_path.empty() && slides->params.aspect_ratio[0] > 0.0f)
+        render_height = (int) std::round ((float) run_opts.render_width * slides->params.aspect_ratio[1] / slides->params.aspect_ratio[0]);
+
     visage::ApplicationEditor editor;
     editor.addChild (slides);
-    editor.setWindowless (run_opts.render_width, run_opts.render_height);
+    editor.setWindowless (run_opts.render_width, render_height);
     slides->setBounds (0.0f, 0.0f, editor.width(), editor.height());
     editor.computeLayout (slides);
 
@@ -101,26 +138,38 @@ static void render_slides (const Run_Opts& run_opts)
             continue;
         }
 
-        // Rewind the current slide so that it's in a clean state if we come back to it later.
-        auto* slide = slides->slides[slides->active_slide];
-        if (slides->active_slide != request.slide_idx || slides->animation_step > request.steps)
-        {
-            while (slide->previous_step())
-                slides->animation_step--;
-            slides->set_state (request.slide_idx, 0);
-            slide = slides->slides[request.slide_idx];
-        }
-
-        while (slides->animation_step < request.steps && slide->next_step())
-            slides->animation_step++;
-        slides->update_slide_metadata();
-
-        // Animations are instant, but a frame still needs one draw to update and another to show the result.
-        for (int i = 0; i < 3; ++i)
-            editor.drawWindow();
+        render_slide_state (editor, *slides, request.slide_idx, request.steps);
         editor.takeScreenshot().save (std::string { request.path });
         std::cout << "Rendered slide " << request.slide_idx << " step " << slides->animation_step
                   << " to " << request.path << '\n';
+    }
+
+    if (! run_opts.pdf_path.empty())
+    {
+        Pdf_Writer pdf { run_opts.pdf_path, slides->slides.size(), editor.nativeWidth(), editor.nativeHeight() };
+        if (! pdf.is_open())
+        {
+            std::cout << "ERROR: could not open " << run_opts.pdf_path << " for writing\n";
+        }
+        else
+        {
+            // Each page shows its slide with every animation step revealed.
+            for (size_t slide_idx = 0; slide_idx < slides->slides.size(); ++slide_idx)
+            {
+                render_slide_state (editor, *slides, slide_idx, SIZE_MAX);
+                const auto& screenshot = editor.takeScreenshot();
+                if (! pdf.add_page (screenshot.data(), screenshot.width(), screenshot.height()))
+                {
+                    std::cout << "ERROR: failed to add slide " << slide_idx << " to the PDF\n";
+                    break;
+                }
+            }
+
+            if (pdf.finish())
+                std::cout << "Exported " << slides->slides.size() << " slides to " << run_opts.pdf_path << '\n';
+            else
+                std::cout << "ERROR: failed while writing " << run_opts.pdf_path << '\n';
+        }
     }
 
     editor.removeChild (slides);
@@ -129,7 +178,7 @@ static void render_slides (const Run_Opts& run_opts)
 
 void slides_runner (Run_Opts run_opts)
 {
-    if (! run_opts.renders.empty())
+    if (! run_opts.renders.empty() || ! run_opts.pdf_path.empty())
     {
         render_slides (run_opts);
         return;

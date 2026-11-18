@@ -18,3 +18,4 @@ _build/
 
 CMakeFiles/**
 args.tmp
+*.pdf

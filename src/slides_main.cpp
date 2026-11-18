@@ -99,6 +99,10 @@ int WINAPI WinMain (_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
             }
         }
 
+        // --export-pdf <out.pdf>
+        if (arg == "--export-pdf" && i + 1 < argc)
+            run_opts.pdf_path = arg_allocator.copy_string (to_string (argv[++i]));
+
         // --render-size <width>x<height>
         if (arg == "--render-size" && i + 1 < argc)
         {

@@ -62,14 +62,38 @@ struct Allocator
         current->bytes_used = ((current->bytes_used + alignment - 1) / alignment) * alignment;
         if (current->bytes_used + num_bytes > current->size)
         {
-            current->next = create_chunk (std::max (chunk_size, num_bytes + alignment));
+            // After a rewind() there may already be a chunk after this one that we can reuse.
+            // Otherwise, splice a new chunk in so that nothing further down the list is lost.
+            if (current->next == nullptr || current->next->size < num_bytes + alignment)
+            {
+                auto* chunk = create_chunk (std::max (chunk_size, num_bytes + alignment));
+                chunk->next = current->next;
+                current->next = chunk;
+            }
             current = current->next;
+            current->bytes_used = 0;
             return allocate_bytes (num_bytes, alignment);
         }
 
         auto* ptr = current->data + current->bytes_used;
         current->bytes_used += num_bytes;
         return ptr;
+    }
+
+    // A position in the arena that can be rewound to later, freeing everything allocated since.
+    // The memory is kept around and reused, so this is handy for per-iteration scratch space.
+    struct Mark
+    {
+        Chunk* chunk {};
+        size_t bytes_used {};
+    };
+
+    Mark mark() const { return { current, current->bytes_used }; }
+
+    void rewind (Mark m) noexcept
+    {
+        current = m.chunk;
+        current->bytes_used = m.bytes_used;
     }
 
     template <typename T, typename IntType>
