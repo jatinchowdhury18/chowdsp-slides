@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <memory>
 
@@ -23,6 +24,10 @@ struct Web_View_Params
     std::string url {};
     std::string html {};
     File* html_file {};
+
+    // Origin to load `html` as. Without one the page has a null origin and sends no Referer,
+    // which some embeds (like YouTube) refuse to work with.
+    std::string html_base_url {};
 };
 
 static Web_View_Params gon_web_view_params (Gon_Ref gon, File_Allocator& file_allocator)
@@ -52,6 +57,8 @@ static Web_View_Params gon_youtube_params (Gon_Ref gon)
 
     return Web_View_Params {
         .html = youtube_html,
+        // YouTube's embedded player needs to see a real origin. This is deliberately generic, since it's sent to YouTube.
+        .html_base_url = "https://localhost/",
     };
 }
 
@@ -74,6 +81,10 @@ struct Web_View : Content_Frame
 
 #if CHOWDSP_SLIDES_MACOS
     id child_window {};
+
+    // Notification observers that re-position the child window whenever the main window moves or changes
+    // size outside of a layout pass (e.g. once the full-screen transition finishes).
+    std::array<id, 5> window_observers {};
 
     // When rendering windowless, the web view is snapshotted once and the result is drawn like an image.
     id snapshot_png {}; // retained NSData holding the encoded snapshot
@@ -132,6 +143,8 @@ struct Web_View : Content_Frame
 
             // Set the WebView as the content view
             choc::objc::call<void> (child_window, "setContentView:", view);
+
+            observe_main_window (main_window);
 #elif CHOWDSP_SLIDES_WINDOWS
             // Attach WebView to the Visage window
             auto* window = default_params.window;
@@ -148,6 +161,23 @@ struct Web_View : Content_Frame
         }
 
         visibilityChanged();
+    }
+
+    static void set_html (choc::ui::WebView& view, const std::string& html, const std::string& base_url)
+    {
+#if CHOWDSP_SLIDES_MACOS
+        // choc's setHTML() always loads with no base URL, so go through WebKit directly.
+        if (! base_url.empty())
+        {
+            using namespace choc::objc;
+            CHOC_AUTORELEASE_BEGIN
+            auto* url = callClass<id> ("NSURL", "URLWithString:", getNSString (base_url.c_str()));
+            call<id> ((CHOC_OBJC_CAST_BRIDGED id) view.getViewHandle(), "loadHTMLString:baseURL:", getNSString (html.c_str()), url);
+            return;
+            CHOC_AUTORELEASE_END
+        }
+#endif
+        view.setHTML (html);
     }
 
     choc::ui::WebView::Options make_options()
@@ -167,7 +197,7 @@ struct Web_View : Content_Frame
             }
             else if (! web_view_params.html.empty())
             {
-                view.setHTML (web_view_params.html);
+                set_html (view, web_view_params.html, web_view_params.html_base_url);
             }
             else if (web_view_params.html_file != nullptr)
             {
@@ -194,6 +224,14 @@ struct Web_View : Content_Frame
             if (auto* view = (CHOC_OBJC_CAST_BRIDGED id) webview->getViewHandle())
                 choc::objc::call<void> (view, "removeFromSuperview");
 
+            auto* notification_center = choc::objc::callClass<id> ("NSNotificationCenter", "defaultCenter");
+            for (auto& observer : window_observers)
+            {
+                if (observer != nullptr)
+                    choc::objc::call<void> (notification_center, "removeObserver:", observer);
+                observer = nullptr;
+            }
+
             if (child_window)
             {
                 // Remove child window from main window (there isn't one when rendering windowless)
@@ -213,39 +251,76 @@ struct Web_View : Content_Frame
         }
     }
 
+#if CHOWDSP_SLIDES_MACOS
+    void observe_main_window (id main_window)
+    {
+        using namespace choc::objc;
+        auto* notification_center = callClass<id> ("NSNotificationCenter", "defaultCenter");
+        const char* names[] = {
+            "NSWindowDidMoveNotification",
+            "NSWindowDidResizeNotification",
+            "NSWindowDidEnterFullScreenNotification",
+            "NSWindowDidExitFullScreenNotification",
+            "NSWindowDidChangeScreenNotification",
+        };
+        static_assert (std::size (names) == std::tuple_size_v<decltype (window_observers)>);
+
+        for (size_t i = 0; i < window_observers.size(); ++i)
+        {
+            window_observers[i] = call<id> (notification_center,
+                                            "addObserverForName:object:queue:usingBlock:",
+                                            getNSString (names[i]),
+                                            main_window,
+                                            (id) nullptr, // deliver synchronously on the posting (main) thread
+                                            ^(id) {
+                                                update_child_window_frame();
+                                            });
+        }
+    }
+
+    // Places the child window over this frame's area of the main window, in screen coordinates.
+    void update_child_window_frame()
+    {
+        if (! webview || child_window == nullptr || default_params.window == nullptr)
+            return;
+
+        using namespace choc::objc;
+        using Rect = choc::objc::CGRect;
+        auto* main_window = (CHOC_OBJC_CAST_BRIDGED id) default_params.window->windowHandle();
+        auto* main_view = (CHOC_OBJC_CAST_BRIDGED id) default_params.window->nativeHandle();
+        if (main_window == nullptr || main_view == nullptr)
+            return;
+
+        // Go through the view that visage draws into, rather than deriving its position from the window frame.
+        // That stays correct in full-screen (where there's no title bar) and on displays that aren't at the origin.
+        const auto view_in_window = call<Rect> (main_view, "convertRect:toView:", call<Rect> (main_view, "bounds"), (id) nullptr);
+        const auto view_on_screen = call<Rect> (main_window, "convertRectToScreen:", view_in_window);
+
+        const auto pos = positionInWindow();
+        const auto scale = 1.0f / dpiScale();
+        const auto w = std::round ((float) nativeWidth() * scale);
+        const auto h = std::round ((float) nativeHeight() * scale);
+
+        // Screen coordinates have y going up, while visage has y going down.
+        Rect child_frame;
+        child_frame.origin.x = view_on_screen.origin.x + std::round (pos.x);
+        child_frame.origin.y = view_on_screen.origin.y + view_on_screen.size.height - std::round (pos.y) - h;
+        child_frame.size.width = w;
+        child_frame.size.height = h;
+        call<void> (child_window, "setFrame:display:", child_frame, true);
+
+        if (auto* view = (CHOC_OBJC_CAST_BRIDGED id) webview->getViewHandle())
+            call<void> (view, "setFrame:", Rect { { 0, 0 }, { child_frame.size.width, child_frame.size.height } });
+    }
+#endif
+
     void resized() override
     {
         if (! webview)
             return;
 
 #if CHOWDSP_SLIDES_MACOS
-        const auto pos = positionInWindow();
-        const auto scale = 1.0f / dpiScale();
-        const auto w = static_cast<int> (std::round ((float) nativeWidth() * scale));
-        const auto h = static_cast<int> (std::round ((float) nativeHeight() * scale));
-        if (auto* main_window = (CHOC_OBJC_CAST_BRIDGED id) default_params.window->windowHandle())
-        {
-            choc::objc::CGRect main_bounds = choc::objc::call<choc::objc::CGRect> (main_window,
-                                                                                   "contentRectForFrameRect:",
-                                                                                   choc::objc::call<choc::objc::CGRect> (main_window, "frame"));
-
-            // Compute child window frame relative to main window
-            choc::objc::CGRect child_frame;
-            child_frame.origin.x = (int) pos.x;
-            child_frame.origin.y = main_bounds.size.height + main_bounds.origin.y - h - (int) pos.y; // flip Y
-            child_frame.size.width = w;
-            child_frame.size.height = h;
-
-            // Apply new frame
-            choc::objc::call<void> (child_window, "setFrame:display:", child_frame, true);
-
-            if (auto* view = (CHOC_OBJC_CAST_BRIDGED id) webview->getViewHandle())
-            {
-                choc::objc::CGRect web_frame = { { 0, 0 }, { child_frame.size.width,
-                                                             child_frame.size.height } };
-                choc::objc::call<void> (view, "setFrame:", web_frame);
-            }
-        }
+        update_child_window_frame();
 #elif CHOWDSP_SLIDES_WINDOWS
         // @TODO: this doesn't work when the window is un-maximized and moved around...
         // @TODO: why is the scaling inconsistent
