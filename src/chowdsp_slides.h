@@ -52,8 +52,18 @@ struct Slide_Params
     std::span<size_t> step_order {};
 };
 
+// Identifies a slide in warnings, e.g. `slide 7 ("Audio I/O: Buffers")`. The number matches the footer.
+static std::string slide_label (size_t slide_idx, Gon_Ref gon)
+{
+    auto label = "slide " + std::to_string (slide_idx);
+    const auto title = gon["title"]["text"].String ({});
+    if (! title.empty())
+        label += " (\"" + title + "\")";
+    return label;
+}
+
 // Resolves step_order entries (ids or indices) against content.
-static std::span<size_t> gon_step_order (Gon_Ref gon, std::span<Content_Frame*> content, Allocator& allocator)
+static std::span<size_t> gon_step_order (Gon_Ref gon, std::span<Content_Frame*> content, Allocator& allocator, const std::string& label)
 {
     if (gon.size() == 0)
         return {};
@@ -69,7 +79,7 @@ static std::span<size_t> gon_step_order (Gon_Ref gon, std::span<Content_Frame*> 
                                           { return frame->frame_params.id == id; });
             if (it == content.end())
             {
-                global_diagnostics().warn ("step_order references unknown id '" + std::string { id } + "', using default step order");
+                global_diagnostics().warn (label + ": step_order references unknown id '" + std::string { id } + "', using default step order");
                 return {};
             }
             order[idx++] = (size_t) std::distance (content.begin(), it);
@@ -79,7 +89,7 @@ static std::span<size_t> gon_step_order (Gon_Ref gon, std::span<Content_Frame*> 
             const auto index = (size_t) g.Int (0);
             if (index >= content.size())
             {
-                global_diagnostics().warn ("step_order index " + std::to_string (index) + " is out of range, using default step order");
+                global_diagnostics().warn (label + ": step_order index " + std::to_string (index) + " is out of range, using default step order");
                 return {};
             }
             order[idx++] = index;
@@ -92,7 +102,7 @@ static std::span<size_t> gon_step_order (Gon_Ref gon, std::span<Content_Frame*> 
         const auto actual = (size_t) std::count (order.begin(), order.end(), content_idx);
         if (actual != 0 && actual != expected)
         {
-            global_diagnostics().warn ("step_order uses content frame " + std::to_string (content_idx) + " " + std::to_string (actual) + " time(s), expected " + std::to_string (expected) + ", using default step order");
+            global_diagnostics().warn (label + ": step_order uses content frame " + std::to_string (content_idx) + " " + std::to_string (actual) + " time(s), expected " + std::to_string (expected) + ", using default step order");
             return {};
         }
     }
@@ -190,11 +200,11 @@ static void merge_params (Slide_Params& slide_params, const Default_Params& defa
         merge_params (text, default_params);
 }
 
-static Slide_Params gon_slide_params (Gon_Ref gon, const Default_Params& default_params)
+static Slide_Params gon_slide_params (Gon_Ref gon, const Default_Params& default_params, size_t slide_idx)
 {
     // content has to exist before step_order can resolve ids/indices against it.
     auto content = gon_content_array (gon["content"], default_params);
-    auto step_order = gon_step_order (gon["step_order"], content, *default_params.frame_allocator);
+    auto step_order = gon_step_order (gon["step_order"], content, *default_params.frame_allocator, slide_label (slide_idx, gon));
 
     Slide_Params params {
         .background_image = gon_file (gon["background_image"], *default_params.file_allocator),
@@ -370,7 +380,10 @@ static std::span<Slide*> gon_slides (Gon_Ref gon, const Default_Params& params)
     auto slides = params.frame_allocator->make_span<Slide*> (gon.size());
     size_t idx = 0;
     for (const auto& g : gon)
-        slides[idx++] = params.frame_allocator->allocate<Slide> (params, gon_slide_params (g, params));
+    {
+        slides[idx] = params.frame_allocator->allocate<Slide> (params, gon_slide_params (g, params, idx));
+        idx++;
+    }
     return slides;
 }
 
