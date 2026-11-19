@@ -691,6 +691,13 @@ struct Web_View : Content_Frame
             create_webview (webview_id, web_view_params.url.c_str());
         else if (! web_view_params.html.empty())
             create_webview_html (webview_id, web_view_params.html.c_str());
+        else if (web_view_params.html_file != nullptr)
+        {
+            // The file contents aren't null-terminated, so copy them into a string first.
+            const std::string html_source { (const char*) web_view_params.html_file->data,
+                                            web_view_params.html_file->size };
+            create_webview_html (webview_id, html_source.c_str());
+        }
 
         visibilityChanged();
 
